@@ -1,0 +1,12 @@
+node_modules/
+assets/
+vendor/
+__pycache__/
+work/
+*.log
+.env
+*.db
+*.sqlite
+.DS_Store
+
+qa/

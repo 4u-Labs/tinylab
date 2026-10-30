@@ -1,51 +1,5 @@
-const CACHE_NAME = 'tinylab-cache-v1';
-const ASSETS_TO_CACHE = [
-  './',
-  './index.html',
-  './style.css',
-  './app.js',
-  './tools.js',
-  './icon.png',
-  './icon-512.png',
-  './icon-192.png',
-  './icon-96.png',
-  './favicon.ico',
-  './favicon-32x32.png',
-  './favicon.svg',
-  './manifest.json'
-];
-
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(ASSETS_TO_CACHE);
-    })
-  );
-  self.skipWaiting();
-});
-
-self.addEventListener('activate', (event) => {
-  event.waitUntil(
-    caches.keys().then((keys) => {
-      return Promise.all(
-        keys.map((key) => {
-          if (key !== CACHE_NAME) {
-            return caches.delete(key);
-          }
-        })
-      );
-    })
-  );
-  self.clients.claim();
-});
-
-self.addEventListener('fetch', (event) => {
-  // Ignora requisições de outras origens ou esquemas especiais
-  if (!event.request.url.startsWith(self.location.origin)) return;
-
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      return cachedResponse || fetch(event.request);
-    })
-  );
-});
+const CACHE="tinylab-v2-d412990d4d5f";
+const CORE=["./","./index.html","./style.css","./manifest.json","./favicon-32x32.png","./favicon.ico","./icon-96.png","./icon-192.png","./icon-512.png","./assets/main.js","./assets/chunk-UHUT7EOQ.js","./assets/chunk-DGJUBN33.js"];
+self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE)));self.skipWaiting();});
+self.addEventListener('activate',e=>{e.waitUntil((async()=>{for(const key of await caches.keys())if((key.startsWith('tinylab-v2-')||key==='tinylab-cache-v1')&&key!==CACHE)await caches.delete(key);await self.clients.claim();})());});
+self.addEventListener('fetch',e=>{const u=new URL(e.request.url),base=new URL('./',self.location.href);if(e.request.method!=='GET'||u.origin!==base.origin||!u.pathname.startsWith(base.pathname)||u.pathname.includes('/api/')||u.pathname.endsWith('.php')||e.request.headers.has('range'))return;e.respondWith((async()=>{const cache=await caches.open(CACHE);try{const response=await fetch(e.request);if(response.ok&&response.type!=='opaque'&&!response.headers.get('cache-control')?.includes('no-store'))await cache.put(e.request,response.clone());return response;}catch(err){const cached=await cache.match(e.request);if(cached)return cached;if(e.request.mode==='navigate')return cache.match(new URL('index.html',base));throw err;}})());});

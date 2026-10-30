@@ -1,207 +1,283 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-BR">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TinyLab — Suíte de Ferramentas Web Livres, Rápidas & Privadas</title>
-  <meta name="description" content="Mais de 20 utilitários para PDF, Imagem, Vídeo e Código direto no seu navegador. Zero upload para servidores, 100% privado, sem anúncios e sem limites.">
-  <meta name="theme-color" content="#7928ca">
-  
-  <!-- Open Graph / Redes Sociais -->
-  <meta property="og:title" content="TinyLab — Suíte de Ferramentas Web 100% Privadas">
-  <meta property="og:description" content="Utilitários completos para PDF, Imagem, Vídeo e Dev. Seus arquivos nunca saem do seu computador.">
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://4u.ia.br/app/tinylab/">
-  <meta property="og:image" content="https://4u.ia.br/app/tinylab/icon-512.png">
-  
-  <!-- Favicon e PWA -->
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
-  <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png">
-  <link rel="manifest" href="manifest.json">
-  <link rel="stylesheet" href="style.css">
-
-  <!-- Bibliotecas Client-Side em CDN (Executam 100% no navegador do usuário) -->
-  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" defer></script>
-  <script src="tools.js" defer></script>
-  <script src="app.js" defer></script>
-</head>
-<body>
-
-  <!-- ==========================================================================
-       BARRA DE NAVEGAÇÃO SUPERIOR
-       ========================================================================== -->
-  <header class="navbar">
-    <a href="#" class="brand-wrapper">
-      <div class="brand-logo" style="overflow: hidden; padding: 0; background: transparent; border: none;">
-        <img src="icon-192.png" alt="TinyLab Logo" width="36" height="36" style="border-radius: 9px; display: block;">
-      </div>
-      <div>
-        <span class="brand-title">TinyLab</span>
-        <span class="brand-badge">by 4U-Labs</span>
-      </div>
-    </a>
-
-    <div class="nav-actions">
-      <!-- Seletor de Idioma -->
-      <div class="lang-switch">
-        <button id="lang-pt" class="lang-btn active">PT</button>
-        <button id="lang-en" class="lang-btn">EN</button>
-      </div>
-
-      <!-- Botão Instalar PWA -->
-      <button class="btn-pill" data-open="install-dialog" title="Instalar App">
-        <span>📲</span>
-        <span data-pt="Instalar" data-en="Install">Instalar</span>
-      </button>
-
-      <!-- Botão Ecossistema 4U-Labs (14 Links) -->
-      <button class="btn-icon" data-open="community-dialog" title="Ecossistema 4U-Labs">
-        <span>⚡ 4U-Labs</span>
-      </button>
-    </div>
-  </header>
-
-  <!-- ==========================================================================
-       HERO & BARRA DE BUSCA EM TEMPO REAL
-       ========================================================================== -->
-  <main>
-    <section class="hero">
-      <div class="hero-pill" data-i18n="heroPill">
-        ⚡ 100% no Navegador • Sem Fila • Arquivos Privados
-      </div>
-      <h1 class="hero-title" data-i18n="heroTitle">
-        O Laboratório de Ferramentas <span>Mais Rápido & Privado</span> da Web.
-      </h1>
-      <p class="hero-subtitle" data-i18n="heroSubtitle">
-        Mais de 20 utilitários para PDF, Imagem, Vídeo e Código. Seus arquivos nunca são enviados para servidores externos.
-      </p>
-
-      <!-- Campo de busca inteligente com atalho de teclado '/' -->
-      <div class="search-box-wrapper">
-        <span class="search-icon">🔍</span>
-        <input 
-          type="text" 
-          id="searchInput" 
-          class="search-input" 
-          placeholder="O que você deseja fazer hoje? (ex: juntar pdf, comprimir imagem, qr code...)"
-          autocomplete="off"
-        >
-        <span class="search-shortcut">/</span>
-      </div>
-
-      <!-- Abas de Categorias -->
-      <div class="categories-bar">
-        <button class="category-tab active" data-category="all" data-i18n="catAll">✨ Todas as Ferramentas</button>
-        <button class="category-tab" data-category="pdf" data-i18n="catPdf">📄 PDF Lab</button>
-        <button class="category-tab" data-category="image" data-i18n="catImage">🎨 Image Lab</button>
-        <button class="category-tab" data-category="video" data-i18n="catVideo">🎬 Vídeo & Áudio</button>
-        <button class="category-tab" data-category="dev" data-i18n="catDev">⚙️ Dev & Dados</button>
-      </div>
-    </section>
-
-    <!-- ==========================================================================
-         GRID DINÂMICO DE FERRAMENTAS
-         ========================================================================== -->
-    <section class="tools-container">
-      <div id="toolsGrid" class="tools-grid">
-        <!-- Renderizado dinamicamente via app.js -->
-      </div>
-    </section>
-  </main>
-
-  <!-- ==========================================================================
-       MODAL DE OPERAÇÃO DA FERRAMENTA
-       ========================================================================== -->
-  <div id="toolModalOverlay" class="modal-overlay">
-    <div class="tool-modal">
-      <div class="modal-header">
-        <div class="modal-title-group">
-          <div id="modalToolIcon" class="modal-icon">⚙️</div>
-          <h2 id="modalToolTitle" class="modal-title">Nome da Ferramenta</h2>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>TinyLab — Ferramentas privadas para o dia a dia</title>
+    <meta
+      name="description"
+      content="Ferramentas para PDF, imagens, vídeo, áudio, arquivos e texto. Processamento local, PT/EN, sem anúncios e com suporte offline."
+    />
+    <meta name="theme-color" content="#11101a" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="canonical" href="https://4u.ia.br/app/tinylab/" />
+    <meta
+      property="og:title"
+      content="TinyLab — Seu laboratório de ferramentas"
+    />
+    <meta
+      property="og:description"
+      content="PDF, imagens, vídeo, arquivos e texto. Ferramentas úteis com processamento no seu dispositivo."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://4u.ia.br/app/tinylab/" />
+    <meta
+      property="og:image"
+      content="https://4u.ia.br/app/tinylab/icon-512.png"
+    />
+    <link rel="icon" href="favicon-32x32.png" type="image/png" sizes="32x32" />
+    <link rel="icon" href="icon-96.png" type="image/png" sizes="96x96" />
+    <link rel="icon" href="favicon.ico" sizes="any" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="assets/main.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#catalog">Ir às ferramentas / Skip to tools</a>
+    <header class="navbar">
+      <a class="brand" href="./" aria-label="TinyLab"
+        ><img src="icon-96.png" width="43" height="43" alt="" /><span
+          >Tiny<span class="brand-accent">Lab</span
+          ><small>BY 4U-LABS</small></span
+        ></a
+      >
+      <nav class="nav-actions" aria-label="Menu">
+        <span id="network" class="network">Online</span>
+        <div class="lang-switch" aria-label="Idioma / Language">
+          <button id="langPt" aria-pressed="true">PT</button><span>|</span
+          ><button id="langEn" aria-pressed="false">EN</button>
         </div>
-        <button id="modalToolClose" class="modal-close-btn" aria-label="Fechar">&times;</button>
+        <button
+          class="nav-button offline-button"
+          id="offlineButton"
+          data-t="offline"
+        >
+          Preparar offline
+        </button>
+        <button class="nav-button" id="installButton">
+          <span aria-hidden="true">↓</span>
+          <span data-t="install">Instalar</span>
+        </button>
+        <button
+          class="nav-button account-button"
+          id="accountButton"
+          data-t="account"
+        >
+          Conta 4u-Labs
+        </button>
+        <button
+          class="nav-button about-button"
+          id="aboutButton"
+          aria-label="4u-Labs"
+        >
+          ✦ <span data-t="ecosystem">4u-Labs</span>
+        </button>
+      </nav>
+    </header>
+    <main>
+      <section class="hero">
+        <div class="hero-copy">
+          <span class="hero-pill"
+            ><span></span>
+            <span data-t="privacy">Seus arquivos ficam com você</span></span
+          >
+          <h1>
+            <span data-t="title">Seu laboratório.</span><br /><span
+              class="gradient-text"
+              data-t="titleAccent"
+              >Infinitas possibilidades.</span
+            >
+          </h1>
+          <p class="hero-subtitle" data-t="subtitle">
+            PDFs, imagens, vídeos, arquivos e texto. Ferramentas úteis, sem
+            anúncios e com processamento no seu dispositivo.
+          </p>
+          <div class="hero-stats">
+            <div>
+              <strong id="toolCount">0</strong
+              ><span data-t="countLabel">ferramentas</span>
+            </div>
+            <div>
+              <strong id="categoryCount">7</strong
+              ><span data-t="categoriesLabel">categorias</span>
+            </div>
+            <div class="privacy-stat">
+              <strong>100%</strong
+              ><span data-t="localLabel"
+                >sem upload nas operações do navegador</span
+              >
+            </div>
+          </div>
+        </div>
+        <div class="hero-art" aria-hidden="true">
+          <div class="orb orb-one"></div>
+          <div class="orb orb-two"></div>
+          <div class="orbit"></div>
+          <div class="hero-logo">
+            <img src="icon-192.png" alt="" width="116" height="116" />
+          </div>
+          <div class="floating-token token-pdf">▤ <span>PDF</span></div>
+          <div class="floating-token token-image">◈ <span>IMAGE</span></div>
+          <div class="floating-token token-code">⌘ <span>CODE</span></div>
+          <div class="floating-token token-ai">✧ <span>LOCAL AI</span></div>
+          <div class="art-caption" data-t="artCaption">
+            MENOS ETAPAS. MAIS CRIAÇÃO.
+          </div>
+        </div>
+      </section>
+      <section class="discovery" aria-label="Ferramentas / Tools">
+        <div class="search-shell">
+          <span aria-hidden="true">⌕</span
+          ><input
+            id="search"
+            type="search"
+            placeholder="O que você quer fazer?"
+            autocomplete="off"
+          /><kbd>/</kbd>
+        </div>
+        <div class="quick-tools">
+          <button data-tool="merge-pdf">
+            ▤ <span data-t="quickPdf">Juntar PDF</span> ↗</button
+          ><button data-tool="compress-image">
+            ◈ <span data-t="quickCompress">Comprimir imagem</span> ↗</button
+          ><button data-tool="qr-code-studio">⌘ <span>QR Code</span> ↗</button
+          ><button data-tool="ocr-image">✧ <span>OCR</span> ↗</button>
+        </div>
+        <div class="catalog-heading">
+          <div>
+            <span class="eyebrow" data-t="explore">EXPLORE O LAB</span>
+            <h2 data-t="all">Todas as ferramentas</h2>
+          </div>
+          <span id="shownCount"></span>
+        </div>
+        <div class="category-nav" id="categoryNav"></div>
+        <div class="filter-bar">
+          <div class="view-filters">
+            <button data-filter="all" aria-pressed="true">
+              Todas as ferramentas</button
+            ><button data-filter="favorites" aria-pressed="false">
+              Favoritas</button
+            ><button data-filter="recent" aria-pressed="false">Recentes</button>
+          </div>
+          <button
+            class="text-button"
+            id="clearRecent"
+            data-t="clearRecent"
+            hidden
+          >
+            Limpar recentes
+          </button>
+        </div>
+        <div class="tools-grid" id="catalog" aria-live="polite"></div>
+      </section>
+      <section class="privacy-note">
+        <div class="privacy-icon">⌾</div>
+        <div>
+          <h2 data-t="privacy">Seus arquivos ficam com você</h2>
+          <p data-t="privacyText">
+            Operações no navegador não enviam arquivos. IA baixa modelos; o modo
+            Office local usa somente este computador.
+          </p>
+        </div>
+        <span class="privacy-tag">LOCAL FIRST</span>
+      </section>
+    </main>
+    <footer>
+      <div class="footer-top">
+        <a class="brand" href="./"
+          ><img src="icon-96.png" width="32" height="32" alt="" /><span
+            >Tiny<span class="brand-accent">Lab</span></span
+          ></a
+        >
+        <p data-t="footer">Feito para facilitar o seu dia.</p>
+        <a
+          class="support-link"
+          href="https://www.paypal.com/ncp/payment/L7YRCS984T33N"
+          target="_blank"
+          rel="noopener noreferrer"
+          >♡ <span data-t="support">Apoiar o projeto</span> ↗</a
+        >
       </div>
-      <div id="modalToolBody" class="modal-body">
-        <!-- Conteúdo específico da ferramenta é injetado dinamicamente -->
+      <div class="footer-bottom">
+        <span>© <span id="year"></span> TinyLab · 4u-Labs</span>
+        <nav>
+          <a href="https://4u.ia.br/" target="_blank" rel="noopener noreferrer"
+            >Portal 4U</a
+          ><a
+            href="https://4u.ia.br/termos.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-t="terms"
+            >Termos</a
+          ><a
+            href="https://4u.ia.br/politica.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-t="privacyLink"
+            >Privacidade</a
+          ><a
+            href="https://github.com/4u-Labs"
+            target="_blank"
+            rel="noopener noreferrer"
+            >GitHub</a
+          >
+        </nav>
       </div>
-    </div>
-  </div>
-
-  <!-- ==========================================================================
-       MODAL OFICIAL 4U-LABS (14 LINKS EXTERNOS)
-       ========================================================================== -->
-  <dialog id="community-dialog">
-    <div class="dialog-heading">
-      <span class="eyebrow" data-i18n="communityEyebrow">ECOSSISTEMA 4U-LABS</span>
-      <button data-close="community-dialog" aria-label="Fechar / Close">×</button>
-    </div>
-    <h2 data-i18n="communityTitle">Aplicativos, suporte e comunidade</h2>
-    <nav class="community-grid">
-      <a href="https://4u.ia.br/" target="_blank" rel="noopener noreferrer" data-pt="Portal 4U" data-en="Portal 4U">Portal 4U</a>
-      <a href="https://4u.ia.br/loja/index.php" target="_blank" rel="noopener noreferrer" data-pt="Loja de Apps" data-en="App Store">Loja de Apps</a>
-      <a href="https://4u.ia.br/suporte.html" target="_blank" rel="noopener noreferrer" data-pt="Central de Ajuda" data-en="Help Center">Central de Ajuda</a>
-      <a href="https://4u.ia.br/sobre.html" target="_blank" rel="noopener noreferrer" data-pt="Sobre 4U" data-en="About 4U">Sobre 4U</a>
-      <a href="https://4u.ia.br/termos.html" target="_blank" rel="noopener noreferrer" data-pt="Termos" data-en="Terms">Termos</a>
-      <a href="https://4u.ia.br/politica.html" target="_blank" rel="noopener noreferrer" data-pt="Privacidade" data-en="Privacy">Privacidade</a>
-      <a href="https://github.com/4u-Labs" target="_blank" rel="noopener noreferrer" data-pt="GitHub" data-en="GitHub">GitHub</a>
-      <a href="https://4u-labs.github.io/" target="_blank" rel="noopener noreferrer" data-pt="Blog Dev" data-en="Dev Blog">Blog Dev</a>
-      <a href="https://alternativeto.net/user/4u-ia-br/added/" target="_blank" rel="noopener noreferrer" data-pt="AlternativeTo" data-en="AlternativeTo">AlternativeTo</a>
-      <a href="https://www.youtube.com/@fbr4g4" target="_blank" rel="noopener noreferrer" data-pt="YouTube" data-en="YouTube">YouTube</a>
-      <a href="https://www.instagram.com/fbr4g4/" target="_blank" rel="noopener noreferrer" data-pt="Instagram" data-en="Instagram">Instagram</a>
-      <a href="https://www.facebook.com/fbr4g4/" target="_blank" rel="noopener noreferrer" data-pt="Facebook" data-en="Facebook">Facebook</a>
-      <a href="https://x.com/fbr4g4" target="_blank" rel="noopener noreferrer" data-pt="X / Twitter" data-en="X / Twitter">X / Twitter</a>
-      <a href="https://www.linkedin.com/in/fbr4g4/" target="_blank" rel="noopener noreferrer" data-pt="LinkedIn" data-en="LinkedIn">LinkedIn</a>
-    </nav>
-    <a class="donate-link" href="https://www.paypal.com/ncp/payment/L7YRCS984T33N" target="_blank" rel="noopener noreferrer" data-i18n="donateBtn">
-      ♡ Apoiar o projeto no PayPal
-    </a>
-  </dialog>
-
-  <!-- ==========================================================================
-       MODAL DE INSTALAÇÃO DO APLICATIVO
-       ========================================================================== -->
-  <dialog id="install-dialog">
-    <div class="dialog-heading">
-      <span class="eyebrow">TINYLAB PWA</span>
-      <button data-close="install-dialog" aria-label="Fechar / Close">×</button>
-    </div>
-    <h2 data-i18n="installTitle">Instalar o aplicativo</h2>
-    <p style="margin: 1rem 0; color: var(--text-muted); font-size: 0.92rem; line-height: 1.6;" data-pt="No Chrome/Edge do computador ou Android, clique em Instalar no menu do navegador ou na barra de endereços para ter o TinyLab direto na sua área de trabalho. No iPhone/iPad (Safari), toque em Compartilhar ➔ Adicionar à Tela de Início. O app funciona offline com carregamento instantâneo." data-en="On Chrome/Edge (Desktop or Android), click Install in the browser address bar or menu to add TinyLab to your home screen. On iPhone/iPad (Safari), tap Share ➔ Add to Home Screen. The app works offline with instant loading.">
-      No Chrome/Edge do computador ou Android, clique em Instalar no menu do navegador ou na barra de endereços para ter o TinyLab direto na sua área de trabalho. No iPhone/iPad (Safari), toque em Compartilhar ➔ Adicionar à Tela de Início. O app funciona offline com carregamento instantâneo.
-    </p>
-    <button class="btn-primary" style="width: 100%;" onclick="document.getElementById('install-dialog').close()">
-      ✓ Entendido
-    </button>
-  </dialog>
-
-  <!-- ==========================================================================
-       RODAPÉ
-       ========================================================================== -->
-  <footer class="footer">
-    <div class="footer-content">
-      <div class="brand-wrapper">
-        <img src="icon-192.png" alt="TinyLab Logo" width="28" height="28" style="border-radius: 7px;">
-        <span class="brand-title" style="font-size: 1.1rem;">TinyLab</span>
-      </div>
-      <p style="color: var(--text-muted); font-size: 0.88rem; max-width: 600px;">
-        Suíte de ferramentas web de código aberto, livre de anúncios invasivos e com processamento 100% local no seu navegador.
-      </p>
-      <div class="footer-links">
-        <a href="https://4u.ia.br/" target="_blank" rel="noopener noreferrer">Portal 4U</a>
-        <a href="https://4u.ia.br/loja/index.php" target="_blank" rel="noopener noreferrer">Loja de Aplicativos</a>
-        <a href="https://4u.ia.br/suporte.html" target="_blank" rel="noopener noreferrer">Central de Suporte</a>
-        <a href="https://4u.ia.br/termos.html" target="_blank" rel="noopener noreferrer">Termos de Uso</a>
-        <a href="https://4u.ia.br/politica.html" target="_blank" rel="noopener noreferrer">Política de Privacidade</a>
-        <a href="https://github.com/4u-Labs" target="_blank" rel="noopener noreferrer">GitHub 4U-Labs</a>
-      </div>
-      <p class="footer-copy">
-        &copy; 2026 TinyLab • Desenvolvido com orgulho pelo ecossistema <strong>4U-Labs</strong> (4u.ia.br).
-      </p>
-    </div>
-  </footer>
-
-</body>
+    </footer>
+    <dialog id="workspace" class="workspace">
+      <header class="workspace-header">
+        <span class="workspace-icon" id="workspaceIcon"></span>
+        <div>
+          <span class="eyebrow" id="workspaceCategory"></span>
+          <h2 id="workspaceTitle"></h2>
+        </div>
+        <button
+          id="workspaceClose"
+          class="close-button"
+          aria-label="Fechar / Close"
+        >
+          ×
+        </button>
+        <p id="workspaceDescription"></p>
+      </header>
+      <div id="workspaceBody" class="workspace-body"></div>
+    </dialog>
+    <dialog id="about" class="small-dialog">
+      <button
+        class="close-button"
+        data-close="about"
+        aria-label="Fechar / Close"
+      >
+        ×</button
+      ><span class="eyebrow">4U-LABS</span>
+      <h2 data-t="aboutTitle">Aplicativos, suporte e comunidade</h2>
+      <p data-t="aboutText"></p>
+      <nav id="aboutLinks" class="community-grid"></nav>
+      <a
+        class="primary"
+        href="https://www.paypal.com/ncp/payment/L7YRCS984T33N"
+        target="_blank"
+        rel="noopener noreferrer"
+        data-t="support"
+        >Apoiar o projeto</a
+      >
+    </dialog>
+    <dialog id="installDialog" class="small-dialog">
+      <button
+        class="close-button"
+        data-close="installDialog"
+        aria-label="Fechar / Close"
+      >
+        ×</button
+      ><span class="eyebrow">TINYLAB PWA</span>
+      <h2 data-t="install">Instalar</h2>
+      <p id="installInstructions"></p>
+    </dialog>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <noscript
+      >Ative JavaScript para usar as ferramentas. / Enable JavaScript to use the
+      tools.</noscript
+    >
+  </body>
 </html>
