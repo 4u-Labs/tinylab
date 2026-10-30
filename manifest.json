@@ -1,0 +1,17 @@
+{
+  "name": "TinyLab — Suíte de Ferramentas Web Livres & Privadas",
+  "short_name": "TinyLab",
+  "description": "Suíte moderna de ferramentas para PDF, Imagem, Vídeo e Utilitários sem anúncios e 100% privada no seu navegador.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0a0b10",
+  "theme_color": "#7928ca",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TinyLab — Suíte de Ferramentas Web Livres, Rápidas & Privadas</title>
+  <meta name="description" content="Mais de 20 utilitários para PDF, Imagem, Vídeo e Código direto no seu navegador. Zero upload para servidores, 100% privado, sem anúncios e sem limites.">
+  <meta name="theme-color" content="#7928ca">
+  
+  <!-- Open Graph / Redes Sociais -->
+  <meta property="og:title" content="TinyLab — Suíte de Ferramentas Web 100% Privadas">
+  <meta property="og:description" content="Utilitários completos para PDF, Imagem, Vídeo e Dev. Seus arquivos nunca saem do seu computador.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://4u.ia.br/app/tinylab/">
+  <meta property="og:image" content="https://4u.ia.br/app/tinylab/favicon.svg">
+  
+  <!-- Favicon e PWA -->
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Bibliotecas Client-Side em CDN (Executam 100% no navegador do usuário) -->
+  <script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" defer></script>
+  <script src="tools.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+
+  <!-- ==========================================================================
+       BARRA DE NAVEGAÇÃO SUPERIOR
+       ========================================================================== -->
+  <header class="navbar">
+    <a href="#" class="brand-wrapper">
+      <div class="brand-logo">
+        <img src="favicon.svg" alt="TinyLab Logo" width="28" height="28">
+      </div>
+      <div>
+        <span class="brand-title">TinyLab</span>
+        <span class="brand-badge">by 4U-Labs</span>
+      </div>
+    </a>
+
+    <div class="nav-actions">
+      <!-- Seletor de Idioma -->
+      <div class="lang-switch">
+        <button id="lang-pt" class="lang-btn active">PT</button>
+        <button id="lang-en" class="lang-btn">EN</button>
+      </div>
+
+      <!-- Botão Instalar PWA -->
+      <button class="btn-pill" data-open="install-dialog" title="Instalar App">
+        <span>📲</span>
+        <span data-pt="Instalar" data-en="Install">Instalar</span>
+      </button>
+
+      <!-- Botão Ecossistema 4U-Labs (14 Links) -->
+      <button class="btn-icon" data-open="community-dialog" title="Ecossistema 4U-Labs">
+        <span>⚡ 4U-Labs</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ==========================================================================
+       HERO & BARRA DE BUSCA EM TEMPO REAL
+       ========================================================================== -->
+  <main>
+    <section class="hero">
+      <div class="hero-pill" data-i18n="heroPill">
+        ⚡ 100% no Navegador • Sem Fila • Arquivos Privados
+      </div>
+      <h1 class="hero-title" data-i18n="heroTitle">
+        O Laboratório de Ferramentas <span>Mais Rápido & Privado</span> da Web.
+      </h1>
+      <p class="hero-subtitle" data-i18n="heroSubtitle">
+        Mais de 20 utilitários para PDF, Imagem, Vídeo e Código. Seus arquivos nunca são enviados para servidores externos.
+      </p>
+
+      <!-- Campo de busca inteligente com atalho de teclado '/' -->
+      <div class="search-box-wrapper">
+        <span class="search-icon">🔍</span>
+        <input 
+          type="text" 
+          id="searchInput" 
+          class="search-input" 
+          placeholder="O que você deseja fazer hoje? (ex: juntar pdf, comprimir imagem, qr code...)"
+          autocomplete="off"
+        >
+        <span class="search-shortcut">/</span>
+      </div>
+
+      <!-- Abas de Categorias -->
+      <div class="categories-bar">
+        <button class="category-tab active" data-category="all" data-i18n="catAll">✨ Todas as Ferramentas</button>
+        <button class="category-tab" data-category="pdf" data-i18n="catPdf">📄 PDF Lab</button>
+        <button class="category-tab" data-category="image" data-i18n="catImage">🎨 Image Lab</button>
+        <button class="category-tab" data-category="video" data-i18n="catVideo">🎬 Vídeo & Áudio</button>
+        <button class="category-tab" data-category="dev" data-i18n="catDev">⚙️ Dev & Dados</button>
+      </div>
+    </section>
+
+    <!-- ==========================================================================
+         GRID DINÂMICO DE FERRAMENTAS
+         ========================================================================== -->
+    <section class="tools-container">
+      <div id="toolsGrid" class="tools-grid">
+        <!-- Renderizado dinamicamente via app.js -->
+      </div>
+    </section>
+  </main>
+
+  <!-- ==========================================================================
+       MODAL DE OPERAÇÃO DA FERRAMENTA
+       ========================================================================== -->
+  <div id="toolModalOverlay" class="modal-overlay">
+    <div class="tool-modal">
+      <div class="modal-header">
+        <div class="modal-title-group">
+          <div id="modalToolIcon" class="modal-icon">⚙️</div>
+          <h2 id="modalToolTitle" class="modal-title">Nome da Ferramenta</h2>
+        </div>
+        <button id="modalToolClose" class="modal-close-btn" aria-label="Fechar">&times;</button>
+      </div>
+      <div id="modalToolBody" class="modal-body">
+        <!-- Conteúdo específico da ferramenta é injetado dinamicamente -->
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+       MODAL OFICIAL 4U-LABS (14 LINKS EXTERNOS)
+       ========================================================================== -->
+  <dialog id="community-dialog">
+    <div class="dialog-heading">
+      <span class="eyebrow" data-i18n="communityEyebrow">ECOSSISTEMA 4U-LABS</span>
+      <button data-close="community-dialog" aria-label="Fechar / Close">×</button>
+    </div>
+    <h2 data-i18n="communityTitle">Aplicativos, suporte e comunidade</h2>
+    <nav class="community-grid">
+      <a href="https://4u.ia.br/" target="_blank" rel="noopener noreferrer" data-pt="Portal 4U" data-en="Portal 4U">Portal 4U</a>
+      <a href="https://4u.ia.br/loja/index.php" target="_blank" rel="noopener noreferrer" data-pt="Loja de Apps" data-en="App Store">Loja de Apps</a>
+      <a href="https://4u.ia.br/suporte.html" target="_blank" rel="noopener noreferrer" data-pt="Central de Ajuda" data-en="Help Center">Central de Ajuda</a>
+      <a href="https://4u.ia.br/sobre.html" target="_blank" rel="noopener noreferrer" data-pt="Sobre 4U" data-en="About 4U">Sobre 4U</a>
+      <a href="https://4u.ia.br/termos.html" target="_blank" rel="noopener noreferrer" data-pt="Termos" data-en="Terms">Termos</a>
+      <a href="https://4u.ia.br/politica.html" target="_blank" rel="noopener noreferrer" data-pt="Privacidade" data-en="Privacy">Privacidade</a>
+      <a href="https://github.com/4u-Labs" target="_blank" rel="noopener noreferrer" data-pt="GitHub" data-en="GitHub">GitHub</a>
+      <a href="https://4u-labs.github.io/" target="_blank" rel="noopener noreferrer" data-pt="Blog Dev" data-en="Dev Blog">Blog Dev</a>
+      <a href="https://alternativeto.net/user/4u-ia-br/added/" target="_blank" rel="noopener noreferrer" data-pt="AlternativeTo" data-en="AlternativeTo">AlternativeTo</a>
+      <a href="https://www.youtube.com/@fbr4g4" target="_blank" rel="noopener noreferrer" data-pt="YouTube" data-en="YouTube">YouTube</a>
+      <a href="https://www.instagram.com/fbr4g4/" target="_blank" rel="noopener noreferrer" data-pt="Instagram" data-en="Instagram">Instagram</a>
+      <a href="https://www.facebook.com/fbr4g4/" target="_blank" rel="noopener noreferrer" data-pt="Facebook" data-en="Facebook">Facebook</a>
+      <a href="https://x.com/fbr4g4" target="_blank" rel="noopener noreferrer" data-pt="X / Twitter" data-en="X / Twitter">X / Twitter</a>
+      <a href="https://www.linkedin.com/in/fbr4g4/" target="_blank" rel="noopener noreferrer" data-pt="LinkedIn" data-en="LinkedIn">LinkedIn</a>
+    </nav>
+    <a class="donate-link" href="https://www.paypal.com/ncp/payment/L7YRCS984T33N" target="_blank" rel="noopener noreferrer" data-i18n="donateBtn">
+      ♡ Apoiar o projeto no PayPal
+    </a>
+  </dialog>
+
+  <!-- ==========================================================================
+       MODAL DE INSTALAÇÃO DO APLICATIVO
+       ========================================================================== -->
+  <dialog id="install-dialog">
+    <div class="dialog-heading">
+      <span class="eyebrow">TINYLAB PWA</span>
+      <button data-close="install-dialog" aria-label="Fechar / Close">×</button>
+    </div>
+    <h2 data-i18n="installTitle">Instalar o aplicativo</h2>
+    <p style="margin: 1rem 0; color: var(--text-muted); font-size: 0.92rem; line-height: 1.6;" data-pt="No Chrome/Edge do computador ou Android, clique em Instalar no menu do navegador ou na barra de endereços para ter o TinyLab direto na sua área de trabalho. No iPhone/iPad (Safari), toque em Compartilhar ➔ Adicionar à Tela de Início. O app funciona offline com carregamento instantâneo." data-en="On Chrome/Edge (Desktop or Android), click Install in the browser address bar or menu to add TinyLab to your home screen. On iPhone/iPad (Safari), tap Share ➔ Add to Home Screen. The app works offline with instant loading.">
+      No Chrome/Edge do computador ou Android, clique em Instalar no menu do navegador ou na barra de endereços para ter o TinyLab direto na sua área de trabalho. No iPhone/iPad (Safari), toque em Compartilhar ➔ Adicionar à Tela de Início. O app funciona offline com carregamento instantâneo.
+    </p>
+    <button class="btn-primary" style="width: 100%;" onclick="document.getElementById('install-dialog').close()">
+      ✓ Entendido
+    </button>
+  </dialog>
+
+  <!-- ==========================================================================
+       RODAPÉ
+       ========================================================================== -->
+  <footer class="footer">
+    <div class="footer-content">
+      <div class="brand-wrapper">
+        <img src="favicon.svg" alt="TinyLab Logo" width="24" height="24">
+        <span class="brand-title" style="font-size: 1.1rem;">TinyLab</span>
+      </div>
+      <p style="color: var(--text-muted); font-size: 0.88rem; max-width: 600px;">
+        Suíte de ferramentas web de código aberto, livre de anúncios invasivos e com processamento 100% local no seu navegador.
+      </p>
+      <div class="footer-links">
+        <a href="https://4u.ia.br/" target="_blank" rel="noopener noreferrer">Portal 4U</a>
+        <a href="https://4u.ia.br/loja/index.php" target="_blank" rel="noopener noreferrer">Loja de Aplicativos</a>
+        <a href="https://4u.ia.br/suporte.html" target="_blank" rel="noopener noreferrer">Central de Suporte</a>
+        <a href="https://4u.ia.br/termos.html" target="_blank" rel="noopener noreferrer">Termos de Uso</a>
+        <a href="https://4u.ia.br/politica.html" target="_blank" rel="noopener noreferrer">Política de Privacidade</a>
+        <a href="https://github.com/4u-Labs" target="_blank" rel="noopener noreferrer">GitHub 4U-Labs</a>
+      </div>
+      <p class="footer-copy">
+        &copy; 2026 TinyLab • Desenvolvido com orgulho pelo ecossistema <strong>4U-Labs</strong> (4u.ia.br).
+      </p>
+    </div>
+  </footer>
+
+</body>
+</html>
