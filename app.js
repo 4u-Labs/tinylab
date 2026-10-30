@@ -562,6 +562,20 @@ function generateToolOptions(tool) {
     return `
       <div class="controls-grid">
         <div class="control-item">
+          <label class="control-label">Modo de Recorte:</label>
+          <select id="bgRemoveMode" class="control-select">
+            <option value="outer">🎯 Recorte Externo (Ícones, Logos e Borda)</option>
+            <option value="global">🌐 Recorte Global (Todas as áreas similares)</option>
+          </select>
+          <small style="color: var(--text-dim); font-size: 0.75rem; margin-top: 3px;">
+            "Recorte Externo" remove apenas o que está fora, mantendo o interior 100% intacto.
+          </small>
+        </div>
+        <div class="control-item">
+          <label class="control-label">Sensibilidade / Tolerância: <span id="bgTolVal">45</span></label>
+          <input type="range" id="bgTolerance" min="10" max="85" value="45" class="control-input" oninput="document.getElementById('bgTolVal').textContent = this.value">
+        </div>
+        <div class="control-item">
           <label class="control-label">Fundo de Saída:</label>
           <select id="bgTargetType" class="control-select">
             <option value="transparent">Transparente (PNG Alpha)</option>
@@ -713,8 +727,15 @@ async function executeToolAction() {
       lastGeneratedBlob = res.blob;
       lastGeneratedName = `tinylab-convertido.${format}`;
     } else if (activeTool.id === 'remove-bg') {
-      const targetBg = document.getElementById('bgTargetType').value;
-      lastGeneratedBlob = await TinyTools.removeBackgroundInstant(currentLoadedFiles[0], targetBg);
+      const targetBg = document.getElementById('bgTargetType')?.value || 'transparent';
+      const mode = document.getElementById('bgRemoveMode')?.value || 'outer';
+      const tolerance = Number(document.getElementById('bgTolerance')?.value) || 45;
+      lastGeneratedBlob = await TinyTools.removeBackgroundInstant(currentLoadedFiles[0], {
+        targetBg,
+        mode,
+        tolerance,
+        feather: true
+      });
       lastGeneratedName = 'tinylab-sem-fundo.png';
     }
 

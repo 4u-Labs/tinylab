@@ -198,7 +198,7 @@ const TinyTools = {
     });
   },
 
-  removeBackgroundInstant(file, targetBg = 'transparent') {
+  removeBackgroundInstant(file, { targetBg = 'transparent', mode = 'outer', tolerance = 42, feather = true } = {}) {
     return new Promise((resolve, reject) => {
       const img = new Image();
       const reader = new FileReader();
@@ -207,60 +207,127 @@ const TinyTools = {
       reader.onerror = reject;
 
       img.onload = () => {
+        const width = img.width;
+        const height = img.height;
+        const totalPixels = width * height;
+
         const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
+        canvas.width = width;
+        canvas.height = height;
         const ctx = canvas.getContext('2d');
 
         ctx.drawImage(img, 0, 0);
-        const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const imgData = ctx.getImageData(0, 0, width, height);
         const data = imgData.data;
 
-        // Amostra a cor do fundo a partir dos 4 cantos
-        const corners = [
-          [0, 0],
-          [canvas.width - 1, 0],
-          [0, canvas.height - 1],
-          [canvas.width - 1, canvas.height - 1],
+        // Amostra a cor do fundo a partir dos 4 cantos e centros das bordas
+        const samplePoints = [
+          [0, 0], [width - 1, 0], [0, height - 1], [width - 1, height - 1],
+          [Math.floor(width / 2), 0], [Math.floor(width / 2), height - 1],
+          [0, Math.floor(height / 2)], [width - 1, Math.floor(height / 2)]
         ];
 
         let bgR = 0, bgG = 0, bgB = 0;
-        corners.forEach(([x, y]) => {
-          const idx = (y * canvas.width + x) * 4;
+        samplePoints.forEach(([x, y]) => {
+          const idx = (y * width + x) * 4;
           bgR += data[idx];
           bgG += data[idx + 1];
           bgB += data[idx + 2];
         });
-        bgR /= 4;
-        bgG /= 4;
-        bgB /= 4;
+        bgR /= samplePoints.length;
+        bgG /= samplePoints.length;
+        bgB /= samplePoints.length;
 
-        const threshold = 40;
+        const tolDist = Number(tolerance);
 
-        for (let i = 0; i < data.length; i += 4) {
-          const r = data[i];
-          const g = data[i + 1];
-          const b = data[i + 2];
+        if (mode === 'outer') {
+          // MODO EXTERNO INTELIGENTE (Flood-Fill BFS contíguo das bordas)
+          // Remove SOMENTE o fundo externo conectado ao perímetro.
+          // O interior do ícone (detalhes, botões, sombras) fica 100% INTACTO.
+          const isBackground = new Uint8Array(totalPixels);
+          const queue = new Int32Array(totalPixels);
+          let head = 0, tail = 0;
 
-          const diff = Math.sqrt(
-            Math.pow(r - bgR, 2) + Math.pow(g - bgG, 2) + Math.pow(b - bgB, 2)
-          );
+          function checkAndEnqueue(x, y) {
+            const idx = y * width + x;
+            if (isBackground[idx]) return;
+            const pIdx = idx * 4;
+            const r = data[pIdx], g = data[pIdx + 1], b = data[pIdx + 2];
+            const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
+            if (dist <= tolDist) {
+              isBackground[idx] = 1;
+              queue[tail++] = idx;
+            }
+          }
 
-          if (diff < threshold) {
-            data[i + 3] = 0; // Transparente
+          // Adiciona as 4 bordas externas à fila
+          for (let x = 0; x < width; x++) {
+            checkAndEnqueue(x, 0);
+            checkAndEnqueue(x, height - 1);
+          }
+          for (let y = 0; y < height; y++) {
+            checkAndEnqueue(0, y);
+            checkAndEnqueue(width - 1, y);
+          }
+
+          // Expansão contígua (BFS)
+          while (head < tail) {
+            const idx = queue[head++];
+            const x = idx % width;
+            const y = (idx / width) | 0;
+
+            if (x > 0) checkAndEnqueue(x - 1, y);
+            if (x < width - 1) checkAndEnqueue(x + 1, y);
+            if (y > 0) checkAndEnqueue(x, y - 1);
+            if (y < height - 1) checkAndEnqueue(x, y + 1);
+          }
+
+          // Aplica transparência exclusivamente aos pixels do fundo externo
+          for (let idx = 0; idx < totalPixels; idx++) {
+            if (isBackground[idx]) {
+              data[idx * 4 + 3] = 0;
+            }
+          }
+
+          // Suavização anti-aliasing nas bordas do recorte
+          if (feather) {
+            for (let y = 1; y < height - 1; y++) {
+              for (let x = 1; x < width - 1; x++) {
+                const idx = y * width + x;
+                if (!isBackground[idx]) {
+                  const neighborsBg =
+                    isBackground[idx - 1] +
+                    isBackground[idx + 1] +
+                    isBackground[idx - width] +
+                    isBackground[idx + width];
+                  if (neighborsBg > 0) {
+                    const pIdx = idx * 4;
+                    data[pIdx + 3] = Math.max(130, 255 - neighborsBg * 28);
+                  }
+                }
+              }
+            }
+          }
+        } else {
+          // MODO GLOBAL: Varredura de toda a imagem
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i], g = data[i + 1], b = data[i + 2];
+            const dist = Math.sqrt((r - bgR) ** 2 + (g - bgG) ** 2 + (b - bgB) ** 2);
+            if (dist <= tolDist) {
+              data[i + 3] = 0;
+            }
           }
         }
 
         ctx.putImageData(imgData, 0, 0);
 
-        // Se o usuário escolheu uma cor de fundo personalizada em vez de transparente
         if (targetBg !== 'transparent') {
           const outCanvas = document.createElement('canvas');
-          outCanvas.width = canvas.width;
-          outCanvas.height = canvas.height;
+          outCanvas.width = width;
+          outCanvas.height = height;
           const outCtx = outCanvas.getContext('2d');
           outCtx.fillStyle = targetBg;
-          outCtx.fillRect(0, 0, outCanvas.width, outCanvas.height);
+          outCtx.fillRect(0, 0, width, height);
           outCtx.drawImage(canvas, 0, 0);
           outCanvas.toBlob((blob) => resolve(blob), 'image/png');
         } else {
