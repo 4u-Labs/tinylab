@@ -5,6 +5,12 @@ const ASSETS_TO_CACHE = [
   './style.css',
   './app.js',
   './tools.js',
+  './icon.png',
+  './icon-512.png',
+  './icon-192.png',
+  './icon-96.png',
+  './favicon.ico',
+  './favicon-32x32.png',
   './favicon.svg',
   './manifest.json'
 ];
