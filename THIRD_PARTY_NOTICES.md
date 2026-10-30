@@ -79,4 +79,4 @@ Source: https://git.sheetjs.com/SheetJS/sheetjs
 FFmpeg core is distributed unmodified. Source and build instructions: https://github.com/ffmpegwasm/ffmpeg.wasm and https://github.com/ffmpegwasm/ffmpeg.wasm-core
 OCR language data: https://github.com/tesseract-ocr/tessdata_fast
 Font: DejaVu Sans, https://dejavu-fonts.github.io/
-Models downloaded on demand: Xenova/modnet (Apache-2.0), Xenova/swin2SR-classical-sr-x2-64 (Apache-2.0), Xenova/whisper-tiny (Apache-2.0), onnx-community/Qwen2.5-0.5B-Instruct (Apache-2.0). See model cards for details.
+Models downloaded on demand: onnx-community/ormbg-ONNX (Apache-2.0), Xenova/modnet (Apache-2.0), Xenova/swin2SR-classical-sr-x2-64 (Apache-2.0), Xenova/whisper-tiny (Apache-2.0), onnx-community/Qwen2.5-0.5B-Instruct (Apache-2.0), onnx-community/Qwen2.5-1.5B-Instruct (Apache-2.0). See model cards for details.

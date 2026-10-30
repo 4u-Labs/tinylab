@@ -4,45 +4,135 @@ import {
   TextStreamer,
   RawImage,
 } from "@huggingface/transformers";
+
 env.allowLocalModels = false;
-env.backends.onnx.wasm.numThreads = 1;
+env.backends.onnx.wasm.numThreads =
+  typeof crossOriginIsolated !== "undefined" && crossOriginIsolated
+    ? Math.min(4, navigator.hardwareConcurrency || 1)
+    : 1;
 env.backends.onnx.wasm.proxy = false;
 env.backends.onnx.wasm.wasmPaths = new URL(
   "../vendor/ort/",
   import.meta.url,
 ).href;
+
 const models = new Map();
+let webgpuPromise;
+
+async function detectWebGPU() {
+  if (!webgpuPromise) {
+    webgpuPromise = (async () => {
+      try {
+        if (typeof navigator === "undefined" || !navigator.gpu) return false;
+        const adapter = await navigator.gpu.requestAdapter();
+        return Boolean(adapter);
+      } catch {
+        return false;
+      }
+    })();
+  }
+  return webgpuPromise;
+}
+
 self.onmessage = async ({ data }) => {
   const { id, options: o, blob, audio } = data;
   const progress = (event) =>
     self.postMessage({ event: "progress", progress: event });
-  async function model(task, name, dtype = "q4") {
-    const key = `${task}:${name}`;
-    if (!models.has(key))
+
+  async function model(
+    task,
+    name,
+    { wasmDtype = "q4", gpuDtype = wasmDtype, allowWebGPU = true } = {},
+  ) {
+    const canGpu = allowWebGPU && (await detectWebGPU());
+    if (canGpu) {
+      const gpuKey = `${task}:${name}:webgpu:${gpuDtype}`;
+      try {
+        if (!models.has(gpuKey)) {
+          models.set(
+            gpuKey,
+            pipeline(task, name, {
+              dtype: gpuDtype,
+              device: "webgpu",
+              progress_callback: progress,
+            }),
+          );
+        }
+        const loaded = await models.get(gpuKey);
+        self.postMessage({ event: "device", device: "WebGPU" });
+        return loaded;
+      } catch {
+        models.delete(gpuKey);
+      }
+    }
+    const wasmKey = `${task}:${name}:wasm:${wasmDtype}`;
+    if (!models.has(wasmKey)) {
       models.set(
-        key,
+        wasmKey,
         pipeline(task, name, {
-          dtype,
+          dtype: wasmDtype,
           device: "wasm",
           progress_callback: progress,
         }),
       );
+    }
     try {
-      return await models.get(key);
+      const loaded = await models.get(wasmKey);
+      self.postMessage({ event: "device", device: "WASM" });
+      return loaded;
     } catch (e) {
-      models.delete(key);
+      models.delete(wasmKey);
       throw e;
     }
   }
+
   try {
     let results;
     if (id === "ai-remove-bg") {
-      const cut = await model("background-removal", "Xenova/modnet", "fp32");
+      const isPortrait = o.subject === "portrait";
+      const cut = await model(
+        "background-removal",
+        isPortrait ? "Xenova/modnet" : "onnx-community/ormbg-ONNX",
+        isPortrait
+          ? { wasmDtype: "fp32", gpuDtype: "fp32" }
+          : { wasmDtype: "q8", gpuDtype: "fp16" },
+      );
       const url = URL.createObjectURL(blob);
       try {
         const cutout = await cut(url);
         const image = Array.isArray(cutout) ? cutout[0] : cutout;
-        results = { blob: await image.toBlob(), name: "tinylab-retrato.png" };
+        const cutCanvas = image.toCanvas();
+        const w = cutCanvas.width,
+          h = cutCanvas.height;
+        if (o.fill === "color" && o.bgColor) {
+          const outCanvas = new OffscreenCanvas(w, h),
+            g = outCanvas.getContext("2d");
+          g.fillStyle = o.bgColor;
+          g.fillRect(0, 0, w, h);
+          g.drawImage(cutCanvas, 0, 0, w, h);
+          results = {
+            blob: await outCanvas.convertToBlob({ type: "image/png" }),
+            name: "tinylab-recorte-ia.png",
+          };
+        } else if (o.fill === "blur") {
+          const orig = await RawImage.fromBlob(blob);
+          const outCanvas = new OffscreenCanvas(w, h),
+            g = outCanvas.getContext("2d");
+          g.filter = `blur(${Math.max(8, Math.round(Math.min(w, h) * 0.022))}px)`;
+          const pad = Math.round(Math.max(w, h) * 0.04);
+          g.drawImage(orig.toCanvas(), -pad, -pad, w + pad * 2, h + pad * 2);
+          g.filter = "none";
+          g.drawImage(cutCanvas, 0, 0, w, h);
+          results = {
+            blob: await outCanvas.convertToBlob({ type: "image/png" }),
+            name: "tinylab-bokeh-ia.png",
+          };
+        } else {
+          results = {
+            blob: await cutCanvas.convertToBlob({ type: "image/png" }),
+            name: "tinylab-recorte-ia.png",
+          };
+        }
       } finally {
         URL.revokeObjectURL(url);
       }
@@ -55,7 +145,7 @@ self.onmessage = async ({ data }) => {
       const upscaler = await model(
         "image-to-image",
         "Xenova/swin2SR-classical-sr-x2-64",
-        "fp32",
+        { wasmDtype: "fp32", gpuDtype: "fp32" },
       );
       const target = new OffscreenCanvas(raw.width * 2, raw.height * 2);
       const g = target.getContext("2d");
@@ -97,7 +187,7 @@ self.onmessage = async ({ data }) => {
       const transcriber = await model(
         "automatic-speech-recognition",
         "Xenova/whisper-tiny",
-        "q8",
+        { wasmDtype: "q8", gpuDtype: "fp32" },
       );
       const result = await transcriber(audio, {
         language: o.language,
@@ -122,10 +212,13 @@ self.onmessage = async ({ data }) => {
         .join("\n\n");
       results = { text: result.text, srt };
     } else {
+      const isPro = o.modelTier === "quality";
       const generator = await model(
         "text-generation",
-        "onnx-community/Qwen2.5-0.5B-Instruct",
-        "q4",
+        isPro
+          ? "onnx-community/Qwen2.5-1.5B-Instruct"
+          : "onnx-community/Qwen2.5-0.5B-Instruct",
+        { wasmDtype: "q4", gpuDtype: "q4f16" },
       );
       const lang = o.lang === "en" ? "English" : "Brazilian Portuguese";
       const requests = {
@@ -139,9 +232,9 @@ self.onmessage = async ({ data }) => {
       if (!requests[id]) throw new Error("Unknown AI operation");
       let content = String(o.content || "").trim();
       if (!content) throw new Error("Texto vazio / Empty text.");
-      if (content.length > 24000)
+      if (content.length > 32000)
         throw new Error(
-          "Limite local: 24.000 caracteres. Divida o documento / Local limit: 24,000 characters. Split the document.",
+          "Limite local: 32.000 caracteres. Divida o documento / Local limit: 32,000 characters. Split the document.",
         );
       async function generate(s) {
         let streamed = "";
@@ -166,7 +259,7 @@ self.onmessage = async ({ data }) => {
             },
           ],
           {
-            max_new_tokens: 384,
+            max_new_tokens: isPro ? 768 : 512,
             do_sample: false,
             repetition_penalty: 1.1,
             streamer,
@@ -191,9 +284,9 @@ self.onmessage = async ({ data }) => {
           chunks.push(await generate(content.slice(i, i + 6000)));
         }
         content = chunks.join("\n");
-      } else if (content.length > 10000)
+      } else if (content.length > 12000)
         throw new Error(
-          "Limite de 10.000 caracteres nesta ferramenta / This tool accepts up to 10,000 characters.",
+          "Limite de 12.000 caracteres nesta ferramenta / This tool accepts up to 12,000 characters.",
         );
       results = { text: await generate(content) };
     }

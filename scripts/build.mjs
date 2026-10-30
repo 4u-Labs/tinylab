@@ -99,7 +99,7 @@ await writeFile(
   "THIRD_PARTY_NOTICES.md",
   "# TinyLab — Third-party software / Software de terceiros\n\n" +
     notices.join("\n") +
-    "\nFFmpeg core is distributed unmodified. Source and build instructions: https://github.com/ffmpegwasm/ffmpeg.wasm and https://github.com/ffmpegwasm/ffmpeg.wasm-core\nOCR language data: https://github.com/tesseract-ocr/tessdata_fast\nFont: DejaVu Sans, https://dejavu-fonts.github.io/\nModels downloaded on demand: Xenova/modnet (Apache-2.0), Xenova/swin2SR-classical-sr-x2-64 (Apache-2.0), Xenova/whisper-tiny (Apache-2.0), onnx-community/Qwen2.5-0.5B-Instruct (Apache-2.0). See model cards for details.\n",
+    "\nFFmpeg core is distributed unmodified. Source and build instructions: https://github.com/ffmpegwasm/ffmpeg.wasm and https://github.com/ffmpegwasm/ffmpeg.wasm-core\nOCR language data: https://github.com/tesseract-ocr/tessdata_fast\nFont: DejaVu Sans, https://dejavu-fonts.github.io/\nModels downloaded on demand: onnx-community/ormbg-ONNX (Apache-2.0), Xenova/modnet (Apache-2.0), Xenova/swin2SR-classical-sr-x2-64 (Apache-2.0), Xenova/whisper-tiny (Apache-2.0), onnx-community/Qwen2.5-0.5B-Instruct (Apache-2.0), onnx-community/Qwen2.5-1.5B-Instruct (Apache-2.0). See model cards for details.\n",
 );
 const outputs = Object.keys(result.metafile.outputs);
 const required = new Set(["assets/main.js"]);

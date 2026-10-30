@@ -110,6 +110,107 @@ test("PDF operations produce correct page counts, rotation and order", async () 
   assert.equal(r.getPage(0).getRotation().angle, 0);
   assert.equal(r.getPage(1).getRotation().angle, 90);
 });
+test("PDF signing and compression preserve selectable vector text and shrink embedded images", async () => {
+  const zlib = await import("node:zlib");
+  const { StandardFonts } = await import("pdf-lib");
+  const { extractText } = await import("../src/engines/pdf.js");
+  function pngChunk(type, buf) {
+    const len = Buffer.alloc(4);
+    len.writeUInt32BE(buf.length);
+    const t = Buffer.from(type);
+    let c = -1;
+    for (const b of Buffer.concat([t, buf])) {
+      c ^= b;
+      for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1));
+    }
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE((c ^ -1) >>> 0);
+    return Buffer.concat([len, t, buf, crc]);
+  }
+  function makePng(w, h, rgba = false) {
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(w, 0);
+    ihdr.writeUInt32BE(h, 4);
+    ihdr[8] = 8;
+    ihdr[9] = rgba ? 6 : 2;
+    const ch = rgba ? 4 : 3;
+    const raw = Buffer.alloc(h * (1 + w * ch));
+    for (let y = 0; y < h; y++) {
+      raw[y * (1 + w * ch)] = 0;
+      for (let x = 0; x < w; x++) {
+        const o = y * (1 + w * ch) + 1 + x * ch;
+        raw[o] = (x * 17 + y * 3) & 255;
+        raw[o + 1] = (y * 23 + x * 5) & 255;
+        raw[o + 2] = ((x ^ y) * 31) & 255;
+        if (rgba) raw[o + 3] = 200;
+      }
+    }
+    return Buffer.concat([
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+      pngChunk("IHDR", ihdr),
+      pngChunk("IDAT", zlib.deflateSync(raw)),
+      pngChunk("IEND", Buffer.alloc(0)),
+    ]);
+  }
+  const d = await PDFDocument.create();
+  const font = await d.embedFont(StandardFonts.HelveticaBold);
+  const bodyFont = await d.embedFont(StandardFonts.Helvetica);
+  const p1 = d.addPage([500, 700]);
+  p1.drawText("RELATORIO OFICIAL 2026", { x: 40, y: 640, size: 20, font });
+  p1.drawText("Item", { x: 40, y: 580, size: 11, font });
+  p1.drawText("Valor", { x: 240, y: 580, size: 11, font });
+  p1.drawText("Servico A", { x: 40, y: 560, size: 11, font: bodyFont });
+  p1.drawText("R$ 150", { x: 240, y: 560, size: 11, font: bodyFont });
+  const bigImg = await d.embedPng(makePng(80, 80, false));
+  p1.drawImage(bigImg, { x: 40, y: 200, width: 200, height: 200 });
+  const p2 = d.addPage([500, 700]);
+  p2.drawText("SEGUNDA PAGINA VETORIAL", { x: 40, y: 640, size: 14, font: bodyFont });
+  const srcBytes = await d.save();
+  const srcFile = new File([srcBytes], "contract.pdf", { type: "application/pdf" });
+
+  // 1. Multi-page sign-pdf keeps vector text intact on all pages
+  const sigPng = makePng(24, 12, true);
+  const signed = (
+    await pdf("sign-pdf", [srcFile], {
+      overlays: [{ page: 0, bytes: sigPng }],
+      applyScope: "all",
+    })
+  )[0];
+  const signedTexts = await extractText(
+    new File([signed.blob], "signed.pdf", { type: "application/pdf" }),
+  );
+  assert.match(signedTexts[0], /RELATORIO OFICIAL 2026/);
+  assert.match(signedTexts[1], /SEGUNDA PAGINA VETORIAL/);
+
+  // 2. Smart compress-pdf replaces embedded RGB stream and preserves selectable text
+  const compressed = (
+    await pdf(
+      "compress-pdf",
+      [srcFile],
+      { mode: "lossless", quality: 65, scale: 1 },
+      { encodeJpeg: async () => new Uint8Array([0xff, 0xd8, 0xff, 0xd9]) },
+    )
+  )[0];
+  assert.ok(compressed.blob.size < srcBytes.byteLength);
+  const compTexts = await extractText(
+    new File([compressed.blob], "comp.pdf", { type: "application/pdf" }),
+  );
+  assert.match(compTexts[0], /RELATORIO OFICIAL 2026/);
+
+  // 3. Structured pdf-to-word -> browser word-to-pdf round-trip preserves headings and table data
+  const docxOut = (await pdf("pdf-to-word", [srcFile], {}))[0];
+  const docxFile = new File([docxOut.blob], "contract.docx", {
+    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  });
+  const roundPdf = (
+    await pdf("word-to-pdf", [docxFile], { mode: "browser" })
+  )[0];
+  const roundTexts = await extractText(
+    new File([roundPdf.blob], "round.pdf", { type: "application/pdf" }),
+  );
+  assert.match(roundTexts[0], /RELATORIO OFICIAL 2026/);
+  assert.match(roundTexts[0], /Servico A/);
+});
 test("PDF encryption requires the password and unlocking restores readable pages", async () => {
   const d = await PDFDocument.create();
   d.addPage([100, 100]);

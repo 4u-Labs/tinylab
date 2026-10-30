@@ -47,6 +47,10 @@ let active = null,
   pageOrder = null,
   crop = null,
   overlay = null,
+  pageOverlays = new Map(),
+  sigStamps = new Map(),
+  uploadedSigImg = null,
+  stampRedraw = null,
   formFields = {},
   lastFocus = null,
   recorder = null,
@@ -235,7 +239,7 @@ function renderCatalog() {
     ? list
         .map(
           (tool) =>
-            `<article class="tool-card ${tool.category}"><div class="card-top"><span class="tool-icon">${icons[tool.category]}</span><button class="favorite ${favorites.includes(tool.id) ? "saved" : ""}" data-favorite="${tool.id}" aria-label="${L("Favoritar", "Favorite")} ${esc(tool.title[lang])}" aria-pressed="${favorites.includes(tool.id)}">${favorites.includes(tool.id) ? "★" : "☆"}</button></div><span class="card-category">${esc(categories.find((c) => c.id === tool.category).label[lang])}</span><h3><button data-tool="${tool.id}">${esc(tool.title[lang])}</button></h3><p>${esc(tool.description[lang])}</p><div class="card-bottom"><span class="local-badge">${tool.companion ? L("Computador local", "Local computer") : tool.model ? L("Modelo local", "Local model") : L("No navegador", "In browser")}</span><button class="card-open" data-tool="${tool.id}" aria-label="${t("open")} ${esc(tool.title[lang])}">↗</button></div></article>`,
+            `<article class="tool-card ${tool.category}"><div class="card-top"><span class="tool-icon">${icons[tool.category]}</span><button class="favorite ${favorites.includes(tool.id) ? "saved" : ""}" data-favorite="${tool.id}" aria-label="${L("Favoritar", "Favorite")} ${esc(tool.title[lang])}" aria-pressed="${favorites.includes(tool.id)}">${favorites.includes(tool.id) ? "★" : "☆"}</button></div><span class="card-category">${esc(categories.find((c) => c.id === tool.category).label[lang])}</span><h3><button data-tool="${tool.id}">${esc(tool.title[lang])}</button></h3><p>${esc(tool.description[lang])}</p><div class="card-bottom"><span class="local-badge">${tool.companion ? L("Serviço efêmero", "Ephemeral service") : tool.model ? L("Modelo local", "Local model") : L("No navegador", "In browser")}</span><button class="card-open" data-tool="${tool.id}" aria-label="${t("open")} ${esc(tool.title[lang])}">↗</button></div></article>`,
         )
         .join("")
     : `<p class="catalog-empty">${t("empty")}</p>`;
@@ -265,36 +269,36 @@ function helpText(tool) {
         );
   const special = {
     "sign-pdf": L(
-      "Assinatura visual desenhada; não é uma assinatura digital com certificado. A página assinada é rasterizada.",
-      "A drawn visual signature; this is not a certificate-based digital signature. The signed page is rasterized.",
+      "Assinatura visual (desenhada, cursiva digitada ou imagem enviada) aplicada em camada transparente sem rasterizar o texto original do PDF.",
+      "Visual signature (drawn, typed cursive or uploaded image) stamped as a transparent layer without rasterizing original PDF text.",
     ),
     "annotate-pdf": L(
-      "Desenhe sobre a página; clique para inserir o texto digitado. A página anotada é rasterizada.",
-      "Draw on the page; click to insert the entered text. The annotated page is rasterized.",
+      "Desenhe, destaque ou insira texto em uma ou mais páginas. As anotações preservam o texto vetorial original.",
+      "Draw, highlight or insert text across one or multiple pages while preserving original vector text.",
     ),
     "crop-image": L(
       "Arraste sobre a imagem para selecionar o recorte.",
       "Drag on the image to select your crop.",
     ),
     "compress-pdf": L(
-      "Otimização pode não reduzir PDFs já compactados. Rasterização descarta texto selecionável, links e formulários.",
-      "Optimization may not reduce already compressed PDFs. Rasterization discards selectable text, links and forms.",
+      "O modo Inteligente recomprime imagens internas mantendo texto selecionável e links. A rasterização converte páginas inteiras em imagem.",
+      "Smart mode recompresses embedded images while keeping selectable text and links. Rasterization converts full pages to images.",
     ),
     "pdf-to-word": L(
-      "Converte texto selecionável para DOCX com layout simplificado. Para PDFs digitalizados, use OCR primeiro.",
-      "Converts selectable text into DOCX with simplified layout. For scanned PDFs, use OCR first.",
+      "Reconstrói títulos, parágrafos, negritos, tabelas e imagens em DOCX. Para PDFs digitalizados sem texto, use OCR de PDF primeiro.",
+      "Reconstructs headings, paragraphs, bold text, tables and images into DOCX. For scanned PDFs without text, run PDF OCR first.",
     ),
     "word-to-pdf": L(
-      "O modo navegador usa layout simplificado; imagens são adicionadas ao final. O modo LibreOffice exige npm run dev neste computador.",
-      "Browser mode uses simplified layout; images are appended. LibreOffice mode requires npm run dev on this computer.",
+      "O modo No navegador converte localmente títulos, listas, tabelas e imagens sem enviar o arquivo. O modo LibreOffice usa conversão efêmera sem armazenamento.",
+      "In-browser mode locally renders headings, lists, tables and images without uploading. LibreOffice mode uses ephemeral conversion with no storage.",
     ),
     "office-to-pdf": L(
-      "Requer o conversor local: execute npm run dev na pasta do projeto. O arquivo passa somente pelo serviço deste computador, sem armazenamento permanente.",
-      "Requires the local converter: run npm run dev in the project folder. Files only pass through this computer’s service, with no permanent storage.",
+      "Converte documentos, planilhas e apresentações em diretório temporário isolado via LibreOffice e apaga imediatamente após gerar o PDF.",
+      "Converts documents, spreadsheets and presentations in an isolated temporary directory via LibreOffice and deletes them immediately.",
     ),
     "remove-bg": L(
-      "Ideal para logos e fundos uniformes. Para pessoas, use Remover fundo de retrato.",
-      "Best for logos and uniform backgrounds. For people, use Portrait background removal.",
+      "Ideal para logos, ícones e fundos uniformes. Após processar, você pode refinar qualquer detalhe com o pincel Apagar/Restaurar.",
+      "Ideal for logos, icons and solid backgrounds. After processing, refine any detail with the Erase/Restore brush.",
     ),
     "video-frames": L(
       "Até 200 quadros por execução para proteger a memória do dispositivo.",
@@ -321,11 +325,11 @@ function modelNotice(tool) {
     tool.id === "ai-upscale"
       ? "~50 MB"
       : tool.id === "ai-remove-bg"
-        ? "~26 MB"
+        ? "~26–42 MB"
         : tool.id === "transcribe"
           ? "~75 MB"
-          : "~400 MB";
-  return `<div class="model-notice"><span>✧</span><p>${L(`Na primeira execução, baixa um modelo (${size}). A inferência ocorre neste dispositivo. Resultados podem conter erros; revise antes de usar.`, `The first run downloads a model (${size}). Inference runs on this device. Results may contain errors; review before using.`)}</p></div>`;
+          : "~400 MB / 1.1 GB";
+  return `<div class="model-notice"><span>✧</span><p>${L(`Na primeira execução, baixa um modelo (${size}) e usa WebGPU automaticamente quando disponível (ou WASM). A inferência ocorre neste dispositivo.`, `The first run downloads a model (${size}) and automatically uses WebGPU when available (or WASM). Inference runs on this device.`)}</p></div>`;
 }
 function openTool(id, { chainFiles = [], content = "" } = {}) {
   const tool = findTool(id);
@@ -341,6 +345,11 @@ function openTool(id, { chainFiles = [], content = "" } = {}) {
   pageOrder = null;
   crop = null;
   overlay = null;
+  pageOverlays = new Map();
+  sigStamps = new Map();
+  uploadedSigImg?.close?.();
+  uploadedSigImg = null;
+  stampRedraw = null;
   formFields = {};
   cleanResults();
   if (location.hash !== `#${id}`) history.replaceState(null, "", `#${id}`);
@@ -363,6 +372,11 @@ function openTool(id, { chainFiles = [], content = "" } = {}) {
     pageOrder = null;
     crop = null;
     overlay = null;
+    pageOverlays = new Map();
+    sigStamps = new Map();
+    uploadedSigImg?.close?.();
+    uploadedSigImg = null;
+    stampRedraw = null;
     $("#toolForm").reset();
     $("#inputPreview").replaceChildren();
     $("#formFields").replaceChildren();
@@ -375,7 +389,13 @@ function openTool(id, { chainFiles = [], content = "" } = {}) {
     if (controller) return;
     cleanResults();
     status(t("ready"));
-    if (e.target.name === "page") renderInputPreview();
+    if (e.target.name === "page" || e.target.name === "signMode")
+      renderInputPreview();
+    else if (
+      ["sigText", "stampScale", "color"].includes(e.target.name) &&
+      stampRedraw
+    )
+      stampRedraw();
   });
   if (tool.input === "files") {
     const input = $("#fileInput"),
@@ -478,6 +498,11 @@ function fileChanged() {
   pageOrder = null;
   crop = null;
   overlay = null;
+  pageOverlays = new Map();
+  sigStamps = new Map();
+  uploadedSigImg?.close?.();
+  uploadedSigImg = null;
+  stampRedraw = null;
   formFields = {};
   cleanResults();
   renderFiles();
@@ -597,6 +622,7 @@ async function renderInputPreview() {
       return;
     }
     if (active.id === "sign-pdf" || active.id === "annotate-pdf") {
+      stampRedraw = null;
       const { loadView, renderPage } = await import("./engines/pdf.js"),
         doc = await loadView(file);
       try {
@@ -607,25 +633,140 @@ async function renderInputPreview() {
           v = page.getViewport({ scale: 1 }),
           c = await renderPage(doc, i, Math.min(1.5, 900 / v.width));
         if (generation !== previewGeneration) return;
+        const nav = document.createElement("div");
+        nav.className = "pdf-page-bar";
+        const prevBtn = document.createElement("button");
+        prevBtn.type = "button";
+        prevBtn.className = "secondary";
+        prevBtn.textContent = "←";
+        prevBtn.disabled = i === 0;
+        prevBtn.onclick = () => {
+          $("#option-page").value = i;
+          renderInputPreview();
+        };
+        const pageInfo = document.createElement("span");
+        const updateMarkedLabel = () => {
+          const marked = [...pageOverlays.entries()]
+            .filter(([, cv]) => canvasHasInk(cv))
+            .map(([idx]) => idx + 1);
+          for (const idx of sigStamps.keys())
+            if (!marked.includes(idx + 1)) marked.push(idx + 1);
+          marked.sort((a, b) => a - b);
+          pageInfo.textContent =
+            L(`Página ${i + 1} de ${doc.numPages}`, `Page ${i + 1} of ${doc.numPages}`) +
+            (marked.length
+              ? ` · ${L("Marcadas", "Marked")}: ${marked.join(", ")}`
+              : "");
+        };
+        const nextBtn = document.createElement("button");
+        nextBtn.type = "button";
+        nextBtn.className = "secondary";
+        nextBtn.textContent = "→";
+        nextBtn.disabled = i >= doc.numPages - 1;
+        nextBtn.onclick = () => {
+          $("#option-page").value = i + 2;
+          renderInputPreview();
+        };
+        nav.append(prevBtn, pageInfo, nextBtn);
+        el.append(nav);
+
+        const signMode =
+          active.id === "sign-pdf"
+            ? $("#option-signMode")?.value || "draw"
+            : "draw";
+
+        if (active.id === "sign-pdf" && signMode === "upload") {
+          const upBar = document.createElement("div");
+          upBar.className = "sig-upload-bar";
+          const upLabel = document.createElement("label");
+          upLabel.className = "secondary file-pill";
+          upLabel.textContent = uploadedSigImg
+            ? L("Trocar imagem da assinatura", "Change signature image")
+            : L("Escolher imagem da assinatura (PNG/JPG)", "Choose signature image (PNG/JPG)");
+          const upInput = document.createElement("input");
+          upInput.type = "file";
+          upInput.accept = "image/*";
+          upInput.hidden = true;
+          upInput.onchange = async () => {
+            if (!upInput.files?.[0]) return;
+            try {
+              const { bitmap } = await import("./utils.js");
+              uploadedSigImg?.close?.();
+              uploadedSigImg = await bitmap(upInput.files[0]);
+              if (!sigStamps.has(i)) sigStamps.set(i, { x: 0.65, y: 0.82 });
+              renderInputPreview();
+            } catch (err) {
+              status(err.message, "error");
+            }
+          };
+          upLabel.append(upInput);
+          upBar.append(upLabel);
+          el.append(upBar);
+        }
+
         const stage = document.createElement("div");
         stage.className = "draw-stage";
         stage.append(c);
-        overlay = canvas(c.width, c.height);
+        let saved = pageOverlays.get(i);
+        if (!saved || saved.width !== c.width || saved.height !== c.height) {
+          const fresh = canvas(c.width, c.height);
+          if (saved)
+            fresh.getContext("2d").drawImage(saved, 0, 0, c.width, c.height);
+          saved = fresh;
+          pageOverlays.set(i, saved);
+        }
+        overlay = saved;
         overlay.className = "draw-overlay";
         stage.append(overlay);
+
+        if (active.id === "sign-pdf" && signMode !== "draw") {
+          overlay.style.pointerEvents = "none";
+          const stampLayer = canvas(c.width, c.height);
+          stampLayer.className = "draw-overlay stamp-overlay";
+          stage.append(stampLayer);
+          if (!sigStamps.has(i)) sigStamps.set(i, { x: 0.65, y: 0.82 });
+          stampRedraw = () => {
+            const sg = stampLayer.getContext("2d");
+            sg.clearRect(0, 0, stampLayer.width, stampLayer.height);
+            paintSignatureStamp(
+              sg,
+              stampLayer.width,
+              stampLayer.height,
+              sigStamps.get(i),
+              {
+                signMode,
+                sigText: $("#option-sigText")?.value || "",
+                stampScale: Number($("#option-stampScale")?.value || 32),
+                color: $("#option-color")?.value || "#7928ca",
+                sigImg: uploadedSigImg,
+                guide: true,
+              },
+            );
+            updateMarkedLabel();
+          };
+          setupStampDrag(stampLayer, i, stampRedraw);
+          stampRedraw();
+        } else {
+          overlay.style.pointerEvents = "auto";
+          setupDrawing(overlay, updateMarkedLabel);
+        }
+
+        updateMarkedLabel();
         el.append(stage);
         const clear = document.createElement("button");
         clear.type = "button";
         clear.className = "secondary";
-        clear.textContent = L("Apagar desenho", "Clear drawing");
+        clear.textContent = L("Limpar marcação desta página", "Clear this page");
         clear.onclick = () => {
           overlay
             .getContext("2d")
             .clearRect(0, 0, overlay.width, overlay.height);
+          sigStamps.delete(i);
+          if (stampRedraw) stampRedraw();
+          updateMarkedLabel();
           cleanResults();
         };
         el.append(clear);
-        setupDrawing(overlay);
       } finally {
         await doc.destroy();
       }
@@ -738,7 +879,117 @@ function setupCrop(c, el) {
   };
   top.onpointercancel = () => (start = null);
 }
-function setupDrawing(c) {
+function canvasHasInk(c) {
+  if (!c) return false;
+  const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+  for (let i = 3; i < d.length; i += 4) if (d[i]) return true;
+  return false;
+}
+function paintSignatureStamp(g, w, h, pos, opts) {
+  if (!pos) return false;
+  const frac = Math.max(0.1, Math.min(0.9, Number(opts.stampScale || 32) / 100));
+  const boxW = w * frac;
+  let boxH = boxW * 0.36;
+  const cx = Math.max(boxW / 2, Math.min(w - boxW / 2, pos.x * w));
+  if (opts.signMode === "upload") {
+    if (!opts.sigImg) return false;
+    boxH = boxW * (opts.sigImg.height / Math.max(1, opts.sigImg.width));
+    const cy = Math.max(boxH / 2, Math.min(h - boxH / 2, pos.y * h));
+    g.drawImage(opts.sigImg, cx - boxW / 2, cy - boxH / 2, boxW, boxH);
+    if (opts.guide) {
+      g.save();
+      g.strokeStyle = "#00dfd8";
+      g.setLineDash([5, 4]);
+      g.lineWidth = 1.5;
+      g.strokeRect(cx - boxW / 2 - 4, cy - boxH / 2 - 4, boxW + 8, boxH + 8);
+      g.restore();
+    }
+    return true;
+  }
+  const txt = String(opts.sigText || "").trim();
+  if (!txt) {
+    if (opts.guide) {
+      const cy = Math.max(24, Math.min(h - 24, pos.y * h));
+      g.save();
+      g.strokeStyle = "#b58be8aa";
+      g.setLineDash([5, 4]);
+      g.strokeRect(cx - boxW / 2, cy - 22, boxW, 44);
+      g.fillStyle = "#b58be8";
+      g.font = "12px sans-serif";
+      g.textAlign = "center";
+      g.fillText(
+        L("Digite sua rubrica acima", "Type your signature above"),
+        cx,
+        cy + 4,
+      );
+      g.restore();
+    }
+    return false;
+  }
+  g.save();
+  let fSize = Math.max(14, Math.round(boxW * 0.24));
+  const fontSpec = (px) =>
+    `italic 600 ${px}px "Snell Roundhand", "Brush Script MT", Georgia, "Times New Roman", cursive, serif`;
+  g.font = fontSpec(fSize);
+  const measured = g.measureText(txt).width;
+  if (measured > boxW * 0.92) {
+    fSize = Math.max(11, Math.floor((fSize * boxW * 0.92) / measured));
+    g.font = fontSpec(fSize);
+  }
+  boxH = Math.max(30, fSize * 1.7);
+  const cy = Math.max(boxH / 2, Math.min(h - boxH / 2, pos.y * h));
+  g.fillStyle = opts.color || "#1a1b4b";
+  g.strokeStyle = opts.color || "#1a1b4b";
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.fillText(txt, cx, cy - fSize * 0.08);
+  g.beginPath();
+  g.lineWidth = Math.max(1.2, fSize * 0.055);
+  g.lineCap = "round";
+  const lineW = Math.min(boxW * 0.85, g.measureText(txt).width * 1.05);
+  g.moveTo(cx - lineW / 2, cy + fSize * 0.48);
+  g.quadraticCurveTo(
+    cx,
+    cy + fSize * 0.34,
+    cx + lineW / 2,
+    cy + fSize * 0.52,
+  );
+  g.stroke();
+  if (opts.guide) {
+    g.strokeStyle = "#00dfd8";
+    g.setLineDash([5, 4]);
+    g.lineWidth = 1.5;
+    g.strokeRect(cx - boxW / 2 - 4, cy - boxH / 2 - 4, boxW + 8, boxH + 8);
+  }
+  g.restore();
+  return true;
+}
+function setupStampDrag(layer, pageIdx, redraw) {
+  let dragging = false;
+  const pt = (e) => {
+    const r = layer.getBoundingClientRect();
+    return {
+      x: Math.max(0.05, Math.min(0.95, (e.clientX - r.left) / r.width)),
+      y: Math.max(0.05, Math.min(0.95, (e.clientY - r.top) / r.height)),
+    };
+  };
+  layer.onpointerdown = (e) => {
+    dragging = true;
+    layer.setPointerCapture(e.pointerId);
+    sigStamps.set(pageIdx, pt(e));
+    redraw();
+    cleanResults();
+  };
+  layer.onpointermove = (e) => {
+    if (!dragging) return;
+    sigStamps.set(pageIdx, pt(e));
+    redraw();
+  };
+  layer.onpointerup = layer.onpointercancel = () => {
+    dragging = false;
+  };
+}
+function setupDrawing(c, onUpdate) {
   const g = c.getContext("2d");
   let drawing = false;
   const p = (e) => {
@@ -759,6 +1010,7 @@ function setupDrawing(c) {
     if (brush === "text") {
       g.font = `${Number($("#option-fontSize").value)}px sans-serif`;
       g.fillText($("#option-content").value, x, y);
+      onUpdate?.();
       cleanResults();
       return;
     }
@@ -775,6 +1027,7 @@ function setupDrawing(c) {
   c.onpointerup = c.onpointercancel = () => {
     drawing = false;
     g.globalAlpha = 1;
+    onUpdate?.();
     cleanResults();
   };
 }
@@ -823,24 +1076,60 @@ async function execute(e) {
     validFiles(active, files);
     if (!$("#toolForm").reportValidity()) return;
     const o = options();
-    if (overlay) {
-      const pixels = overlay
-        .getContext("2d")
-        .getImageData(0, 0, overlay.width, overlay.height).data;
-      let drawn = false;
-      for (let i = 3; i < pixels.length; i += 4)
-        if (pixels[i]) {
-          drawn = true;
-          break;
+    if (active.id === "sign-pdf" || active.id === "annotate-pdf") {
+      const signMode =
+        active.id === "sign-pdf" ? o.signMode || "draw" : "draw";
+      if (signMode === "type" && !String(o.sigText || "").trim())
+        throw new Error(
+          L(
+            "Digite seu nome ou rubrica no campo acima antes de assinar.",
+            "Type your name or initials above before signing.",
+          ),
+        );
+      if (signMode === "upload" && !uploadedSigImg)
+        throw new Error(
+          L(
+            "Escolha a imagem da assinatura antes de processar.",
+            "Choose a signature image before processing.",
+          ),
+        );
+      const candidatePages = new Set([
+        ...pageOverlays.keys(),
+        ...sigStamps.keys(),
+      ]);
+      const collected = [];
+      for (const pIdx of [...candidatePages].sort((a, b) => a - b)) {
+        const baseCv = pageOverlays.get(pIdx);
+        const w = baseCv?.width || 800,
+          h = baseCv?.height || 1100;
+        const merged = canvas(w, h),
+          mg = merged.getContext("2d");
+        if (baseCv) mg.drawImage(baseCv, 0, 0);
+        if (active.id === "sign-pdf" && signMode !== "draw" && sigStamps.has(pIdx)) {
+          paintSignatureStamp(mg, w, h, sigStamps.get(pIdx), {
+            signMode,
+            sigText: o.sigText,
+            stampScale: o.stampScale,
+            color: o.color,
+            sigImg: uploadedSigImg,
+            guide: false,
+          });
         }
-      if (!drawn)
+        if (canvasHasInk(merged)) {
+          collected.push({
+            page: pIdx,
+            bytes: await (await toBlob(merged)).arrayBuffer(),
+          });
+        }
+      }
+      if (!collected.length)
         throw new Error(
           L(
             "Faça uma anotação ou desenhe a assinatura antes de processar.",
             "Draw an annotation or signature before processing.",
           ),
         );
-      o.overlay = await (await toBlob(overlay)).arrayBuffer();
+      o.overlays = collected;
     }
     cleanResults();
     controller = new AbortController();
@@ -1034,6 +1323,118 @@ async function renderResults(all = results) {
         compare.append(before, after);
         details.append(summary, compare, slider);
         article.append(details);
+        if (active?.id === "remove-bg" || active?.id === "ai-remove-bg") {
+          const refine = document.createElement("details");
+          refine.className = "refine-brush";
+          const rSum = document.createElement("summary");
+          rSum.textContent = L(
+            "Refinar recorte manualmente (pincel Apagar / Restaurar)",
+            "Manually refine cutout (Erase / Restore brush)",
+          );
+          const rBody = document.createElement("div");
+          rBody.className = "refine-body";
+          refine.append(rSum, rBody);
+          let initialized = false;
+          refine.ontoggle = async () => {
+            if (!refine.open || initialized) return;
+            initialized = true;
+            const { bitmap } = await import("./utils.js");
+            const [origBmp, cutBmp] = await Promise.all([
+              bitmap(files[0]),
+              bitmap(result.blob),
+            ]);
+            const rw = cutBmp.width,
+              rh = cutBmp.height;
+            const origCv = canvas(rw, rh);
+            origCv.getContext("2d").drawImage(origBmp, 0, 0, rw, rh);
+            origBmp.close?.();
+            const editCv = canvas(rw, rh);
+            editCv.className = "refine-canvas";
+            const eg = editCv.getContext("2d");
+            eg.drawImage(cutBmp, 0, 0, rw, rh);
+            cutBmp.close?.();
+
+            const bar = document.createElement("div");
+            bar.className = "refine-toolbar";
+            let mode = "erase",
+              bSize = Math.max(12, Math.round(Math.min(rw, rh) * 0.04));
+            const eraseBtn = document.createElement("button");
+            eraseBtn.type = "button";
+            eraseBtn.className = "secondary is-active";
+            eraseBtn.textContent = L("Apagar fundo", "Erase");
+            const restoreBtn = document.createElement("button");
+            restoreBtn.type = "button";
+            restoreBtn.className = "secondary";
+            restoreBtn.textContent = L("Restaurar original", "Restore");
+            eraseBtn.onclick = () => {
+              mode = "erase";
+              eraseBtn.classList.add("is-active");
+              restoreBtn.classList.remove("is-active");
+            };
+            restoreBtn.onclick = () => {
+              mode = "restore";
+              restoreBtn.classList.add("is-active");
+              eraseBtn.classList.remove("is-active");
+            };
+            const sizeWrap = document.createElement("label");
+            sizeWrap.textContent = L("Pincel: ", "Brush: ");
+            const sizeRange = document.createElement("input");
+            sizeRange.type = "range";
+            sizeRange.min = 4;
+            sizeRange.max = Math.max(80, Math.round(Math.min(rw, rh) * 0.2));
+            sizeRange.value = bSize;
+            sizeRange.oninput = () => (bSize = Number(sizeRange.value));
+            sizeWrap.append(sizeRange);
+            bar.append(eraseBtn, restoreBtn, sizeWrap);
+            rBody.append(bar, editCv);
+
+            let painting = false;
+            const paintAt = (e) => {
+              const rect = editCv.getBoundingClientRect();
+              const x = ((e.clientX - rect.left) * rw) / rect.width;
+              const y = ((e.clientY - rect.top) * rh) / rect.height;
+              const rad = bSize / 2;
+              eg.save();
+              if (mode === "erase") {
+                eg.globalCompositeOperation = "destination-out";
+                const grad = eg.createRadialGradient(x, y, rad * 0.35, x, y, rad);
+                grad.addColorStop(0, "rgba(0,0,0,1)");
+                grad.addColorStop(1, "rgba(0,0,0,0)");
+                eg.fillStyle = grad;
+                eg.beginPath();
+                eg.arc(x, y, rad, 0, Math.PI * 2);
+                eg.fill();
+              } else {
+                eg.beginPath();
+                eg.arc(x, y, rad, 0, Math.PI * 2);
+                eg.clip();
+                eg.drawImage(origCv, 0, 0);
+              }
+              eg.restore();
+            };
+            editCv.onpointerdown = (e) => {
+              painting = true;
+              editCv.setPointerCapture(e.pointerId);
+              paintAt(e);
+            };
+            editCv.onpointermove = (e) => {
+              if (painting) paintAt(e);
+            };
+            const commitStroke = async () => {
+              if (!painting) return;
+              painting = false;
+              const updated = await toBlob(editCv, "image/png");
+              result.blob = updated;
+              const nextUrl = url(updated);
+              im.src = nextUrl;
+              after.src = nextUrl;
+              size.textContent = humanBytes(updated.size);
+            };
+            editCv.onpointerup = commitStroke;
+            editCv.onpointercancel = commitStroke;
+          };
+          article.append(refine);
+        }
       }
     } else if (type === "application/pdf") {
       const frame = document.createElement("iframe");
@@ -1222,6 +1623,11 @@ function closeWorkspace() {
   active = null;
   files = [];
   overlay = null;
+  pageOverlays = new Map();
+  sigStamps = new Map();
+  uploadedSigImg?.close?.();
+  uploadedSigImg = null;
+  stampRedraw = null;
   dialog.close();
   history.replaceState(null, "", location.pathname + location.search);
   renderCatalog();

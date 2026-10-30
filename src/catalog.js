@@ -201,29 +201,33 @@ pdf(
   "compress-pdf",
   "Comprimir PDF",
   "Compress PDF",
-  "Reduza por otimização ou rasterização com qualidade ajustável.",
-  "Reduce size through optimization or adjustable rasterization.",
+  "Recomprima imagens internas mantendo o texto vetorial ou rasterize tudo.",
+  "Recompress embedded images keeping vector text, or rasterize pages.",
   [
     sel("mode", "Método", "Method", [
-      ["lossless", "Otimizar sem rasterizar", "Optimize without rasterizing"],
+      [
+        "lossless",
+        "Inteligente (mantém texto e links)",
+        "Smart (keeps selectable text & links)",
+      ],
       [
         "raster",
-        "Rasterizar (perde texto selecionável)",
-        "Rasterize (loses selectable text)",
+        "Rasterizar tudo (máxima redução)",
+        "Rasterize pages (maximum reduction)",
       ],
     ]),
     quality,
-    num("scale", "Escala da rasterização", "Raster scale", 1.5, 0.5, 3),
+    num("scale", "Escala / resolução (0.5–3)", "Resolution scale (0.5–3)", 1.5, 0.5, 3),
   ],
 );
 pdf(
   "annotate-pdf",
   "Anotar PDF",
   "Annotate PDF",
-  "Desenhe, destaque e insira texto sobre uma página.",
-  "Draw, highlight and add text on a page.",
+  "Desenhe, destaque e insira texto em uma ou várias páginas mantendo a nitidez vetorial.",
+  "Draw, highlight and add text across pages while keeping vector sharpness.",
   [
-    num("page", "Página", "Page", 1, 1, 10000),
+    num("page", "Página atual", "Current page", 1, 1, 10000),
     sel("brush", "Ferramenta", "Tool", [
       ["pen", "Caneta", "Pen"],
       ["highlight", "Marca-texto", "Highlighter"],
@@ -238,9 +242,23 @@ pdf(
   "sign-pdf",
   "Assinar PDF",
   "Sign PDF",
-  "Desenhe uma assinatura e posicione na página.",
-  "Draw a signature and place it on a page.",
-  [num("page", "Página", "Page", 1, 1, 10000), color],
+  "Desenhe, digite ou envie sua rubrica e posicione em uma ou todas as páginas sem perder nitidez.",
+  "Draw, type or upload your signature and place it on one or all pages without losing sharpness.",
+  [
+    num("page", "Página atual", "Current page", 1, 1, 10000),
+    sel("signMode", "Tipo de assinatura", "Signature type", [
+      ["draw", "Desenhar na página", "Draw on page"],
+      ["type", "Digitar assinatura cursiva", "Type cursive signature"],
+      ["upload", "Enviar imagem (PNG/JPG)", "Upload image (PNG/JPG)"],
+    ]),
+    opt("sigText", "Nome / rubrica (modo digitar)", "Name / initials (type mode)", "text", ""),
+    num("stampScale", "Tamanho do carimbo (%)", "Stamp size (%)", 32, 10, 90),
+    sel("applyScope", "Aplicar em", "Apply to", [
+      ["marked", "Páginas assinadas", "Signed pages"],
+      ["all", "Todas as páginas (rubrica)", "All pages (initials)"],
+    ]),
+    color,
+  ],
 );
 pdf(
   "fill-pdf",
@@ -267,10 +285,10 @@ pdf(
 );
 pdf(
   "ocr-pdf",
-  "OCR de PDF",
-  "PDF OCR",
-  "Reconheça texto de páginas digitalizadas em PT/EN.",
-  "Recognize text from scanned pages in PT/EN.",
+  "OCR de PDF (Pesquisável)",
+  "Searchable PDF OCR",
+  "Gera um PDF pesquisável com camada de texto selecionável + arquivo TXT em PT/EN.",
+  "Creates a searchable PDF with selectable text layer + TXT transcript in PT/EN.",
   [
     range,
     sel("language", "Idioma do documento", "Document language", [
@@ -284,26 +302,26 @@ pdf(
   "pdf-to-word",
   "PDF para Word",
   "PDF to Word",
-  "Crie um DOCX editável com o texto do PDF. Layout simplificado.",
-  "Create an editable DOCX from PDF text. Simplified layout.",
+  "Converte em DOCX preservando títulos, parágrafos, negritos, tabelas e imagens.",
+  "Converts to DOCX preserving headings, paragraphs, bold styles, tables and images.",
 );
 pdf(
   "word-to-pdf",
   "Word para PDF",
   "Word to PDF",
-  "Converta DOCX; use o modo local para preservar o layout.",
-  "Convert DOCX; use the local mode to preserve layout.",
+  "Converta DOCX no navegador (títulos, tabelas e imagens) ou com layout fiel LibreOffice.",
+  "Convert DOCX in browser (headings, tables & images) or with faithful LibreOffice layout.",
   [
     sel("mode", "Conversão", "Conversion", [
       [
         "browser",
-        "No navegador (texto e imagens)",
-        "In browser (text and images)",
+        "No navegador (privado, sem upload)",
+        "In browser (private, no upload)",
       ],
       [
         "companion",
-        "Local com LibreOffice (layout original)",
-        "Local LibreOffice (original layout)",
+        "Layout fiel LibreOffice (serviço efêmero)",
+        "Faithful LibreOffice layout (ephemeral service)",
       ],
     ]),
   ],
@@ -313,8 +331,8 @@ pdf(
   "office-to-pdf",
   "Office para PDF",
   "Office to PDF",
-  "Converta apresentações e documentos com o serviço local.",
-  "Convert presentations and documents with the local service.",
+  "Converta Word, Excel e PowerPoint com fidelidade de layout via LibreOffice efêmero.",
+  "Convert Word, Excel and PowerPoint with layout fidelity via ephemeral LibreOffice.",
   [],
   {
     accept: ".pptx,.ppt,.xlsx,.xls,.docx,.doc,.odt,.ods,.odp",
@@ -1137,21 +1155,53 @@ ai(
   ],
   { input: "files", accept: "image/*", multiple: true, model: false },
 );
+const aiTier = sel(
+  "modelTier",
+  "Modelo local",
+  "Local model",
+  [
+    ["fast", "Rápido · Qwen 2.5 0.5B (~400 MB)", "Fast · Qwen 2.5 0.5B (~400 MB)"],
+    [
+      "quality",
+      "Qualidade Pro · Qwen 2.5 1.5B (~1,1 GB · WebGPU)",
+      "Pro Quality · Qwen 2.5 1.5B (~1.1 GB · WebGPU)",
+    ],
+  ],
+);
 ai(
   "ai-remove-bg",
-  "Remover fundo de retrato",
-  "Portrait background removal",
-  "Recorte pessoas com MODNet executado no dispositivo.",
-  "Cut out people with MODNet running on your device.",
-  [],
+  "Remover fundo com IA",
+  "AI background removal",
+  "Recorte objetos, produtos, logos e pessoas com ORMBG / MODNet + pincel de refino.",
+  "Cut out objects, products, logos and people with ORMBG / MODNet + refine brush.",
+  [
+    sel("subject", "Modo do modelo", "Model mode", [
+      [
+        "general",
+        "Geral (produtos, objetos, logos e pessoas)",
+        "General (products, objects, logos & people)",
+      ],
+      [
+        "portrait",
+        "Retrato rápido (pessoas / selfies)",
+        "Fast portrait (people / selfies)",
+      ],
+    ]),
+    sel("fill", "Fundo de saída", "Output background", [
+      ["transparent", "Transparente (PNG)", "Transparent (PNG)"],
+      ["color", "Cor sólida", "Solid color"],
+      ["blur", "Fundo desfocado (Bokeh)", "Blurred background (Bokeh)"],
+    ]),
+    opt("bgColor", "Cor do novo fundo", "New background color", "color", "#ffffff"),
+  ],
   { input: "files", accept: "image/*" },
 );
 ai(
   "transcribe",
   "Transcrever áudio / vídeo",
   "Transcribe audio / video",
-  "Whisper local, com texto e legendas SRT.",
-  "Local Whisper with text and SRT subtitles.",
+  "Whisper local acelerado (WebGPU/WASM), com texto e legendas SRT.",
+  "Accelerated local Whisper (WebGPU/WASM), with text and SRT subtitles.",
   [
     sel("language", "Idioma falado", "Spoken language", [
       ["portuguese", "Português", "Portuguese"],
@@ -1165,15 +1215,15 @@ ai(
   "summarize",
   "Resumir texto",
   "Summarize text",
-  "Gere um resumo com um modelo local multilíngue.",
-  "Generate a summary with a local multilingual model.",
-  [text],
+  "Gere um resumo com modelo local multilíngue acelerado.",
+  "Generate a summary with an accelerated local multilingual model.",
+  [text, aiTier],
 );
 ai(
   "translate",
   "Traduzir texto",
   "Translate text",
-  "Traduza usando um modelo local, sem API paga.",
+  "Traduza usando modelo local, sem API paga.",
   "Translate with a local model, without paid APIs.",
   [
     text,
@@ -1182,6 +1232,7 @@ ai(
       ["Português brasileiro", "Português", "Portuguese"],
       ["Español", "Espanhol", "Spanish"],
     ]),
+    aiTier,
   ],
 );
 ai(
@@ -1190,7 +1241,7 @@ ai(
   "Proofread text",
   "Revise gramática e clareza mantendo o sentido.",
   "Improve grammar and clarity while retaining meaning.",
-  [text],
+  [text, aiTier],
 );
 ai(
   "rewrite",
@@ -1205,6 +1256,7 @@ ai(
       ["friendly", "Informal", "Friendly"],
       ["concise", "Conciso", "Concise"],
     ]),
+    aiTier,
   ],
 );
 ai(
@@ -1213,7 +1265,7 @@ ai(
   "Social captions",
   "Crie uma legenda a partir do seu briefing.",
   "Create a caption from your brief.",
-  [text],
+  [text, aiTier],
 );
 ai(
   "summarize-pdf",
@@ -1221,7 +1273,7 @@ ai(
   "Summarize PDF",
   "Extraia o texto e produza um resumo local.",
   "Extract text and produce a local summary.",
-  [],
+  [aiTier],
   { input: "files", accept: ".pdf" },
 );
 ai(

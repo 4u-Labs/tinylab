@@ -79,7 +79,15 @@ export async function run(id, files, o, ctx = {}) {
       );
     ctx.signal?.addEventListener("abort", abort, { once: true });
     worker.onerror = (e) => finish(reject, new Error(e.message));
+    let activeDevice = "";
     worker.onmessage = ({ data }) => {
+      if (data.event === "device") {
+        activeDevice = data.device ? ` (${data.device})` : "";
+        ctx.progress?.(
+          null,
+          `Executando inferência local${activeDevice} / Running local inference${activeDevice}`,
+        );
+      }
       if (data.event === "progress") {
         const p = data.progress;
         if (p.status === "progress")
@@ -94,7 +102,7 @@ export async function run(id, files, o, ctx = {}) {
           ctx.progress?.(
             null,
             p.status === "ready"
-              ? "Modelo pronto / Model ready"
+              ? `Modelo pronto${activeDevice} / Model ready${activeDevice}`
               : "Carregando modelo local / Loading local model",
           );
       }

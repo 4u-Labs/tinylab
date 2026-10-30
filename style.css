@@ -1689,3 +1689,79 @@ fieldset {
 .nav-actions button {
   flex-shrink: 0;
 }
+.pdf-page-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.pdf-page-bar button {
+  min-width: 34px;
+  padding: 5px 10px;
+}
+.sig-upload-bar {
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: center;
+}
+.file-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #ffffff08;
+  font-size: 11px;
+  cursor: pointer;
+}
+.stamp-overlay {
+  cursor: grab;
+}
+.stamp-overlay:active {
+  cursor: grabbing;
+}
+.refine-brush {
+  margin-top: 12px;
+  font-size: 11px;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+.refine-brush summary {
+  cursor: pointer;
+  margin-bottom: 10px;
+}
+.refine-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.refine-toolbar button.is-active {
+  border-color: var(--cyan);
+  color: var(--cyan);
+  background: #64e5d614;
+}
+.refine-toolbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+.refine-canvas {
+  max-width: 100%;
+  max-height: 420px;
+  width: auto;
+  height: auto;
+  display: block;
+  margin: auto;
+  border-radius: 7px;
+  cursor: crosshair;
+  touch-action: none;
+  background: repeating-conic-gradient(#333 0% 25%, #29262f 0% 50%) 50%/16px
+    16px;
+}
