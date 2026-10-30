@@ -1,6 +1,20 @@
 import { output, baseName, progress, check } from "../utils.js";
 const asset = (p) => new URL(`../vendor/${p}`, import.meta.url).href;
-export function command(id, o, input, outputName) {
+export function atempoChain(speed) {
+  let s = Math.max(0.25, Math.min(8, Number(speed || 1)));
+  const parts = [];
+  while (s > 2) {
+    parts.push("atempo=2");
+    s /= 2;
+  }
+  while (s < 0.5) {
+    parts.push("atempo=0.5");
+    s /= 0.5;
+  }
+  parts.push(`atempo=${Number(s.toFixed(4))}`);
+  return parts.join(",");
+}
+export function command(id, o, input, outputName, meta = {}) {
   const start = Number(o.start || 0),
     duration = Number(o.duration || 10),
     width = Math.round(Number(o.width || 1280) / 2) * 2;
@@ -95,6 +109,72 @@ export function command(id, o, input, outputName) {
         String(o.crf || 28),
         outputName,
       ];
+    case "crop-video": {
+      const dims = {
+        "9:16": [720, 1280],
+        "1:1": [1080, 1080],
+        "4:5": [1080, 1350],
+        "16:9": [1280, 720],
+      }[o.aspect || "9:16"] || [720, 1280];
+      const [tw, th] = dims;
+      if (o.mode === "pad") {
+        return [
+          "-i",
+          input,
+          "-filter_complex",
+          `[0:v]scale=${tw}:${th}:force_original_aspect_ratio=increase,crop=${tw}:${th},boxblur=20:5[bg];[0:v]scale=${tw}:${th}:force_original_aspect_ratio=decrease[fg];[bg][fg]overlay=(W-w)/2:(H-h)/2,setsar=1[v]`,
+          "-map",
+          "[v]",
+          "-map",
+          "0:a?",
+          ...enc,
+          outputName,
+        ];
+      }
+      return [
+        "-i",
+        input,
+        "-vf",
+        `scale=${tw}:${th}:force_original_aspect_ratio=increase,crop=${tw}:${th},setsar=1`,
+        ...enc,
+        outputName,
+      ];
+    }
+    case "speed-media": {
+      const spd = Math.max(0.25, Math.min(8, Number(o.speed || 1.5)));
+      const atempo = atempoChain(spd);
+      if (meta.isAudioOnly || /\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(input)) {
+        return ["-i", input, "-vn", "-af", atempo, ...audioCodec("mp3"), outputName];
+      }
+      if (meta.hasAudio === false) {
+        return [
+          "-i",
+          input,
+          "-vf",
+          `setpts=PTS/${spd}`,
+          "-an",
+          "-c:v",
+          "libx264",
+          "-preset",
+          "ultrafast",
+          "-pix_fmt",
+          "yuv420p",
+          outputName,
+        ];
+      }
+      return [
+        "-i",
+        input,
+        "-filter_complex",
+        `[0:v]setpts=PTS/${spd}[v];[0:a]${atempo}[a]`,
+        "-map",
+        "[v]",
+        "-map",
+        "[a]",
+        ...enc,
+        outputName,
+      ];
+    }
     case "gif-to-video":
       return [
         "-i",
@@ -164,13 +244,19 @@ export async function run(id, files, o, ctx = {}) {
       await ff.writeFile(name, new Uint8Array(await files[i].arrayBuffer()));
       inputs.push(name);
     }
-    const audio = [
-      "extract-audio",
-      "convert-audio",
-      "trim-audio",
-      "merge-audio",
-      "normalize-audio",
-    ].includes(id);
+    const isAudioInput =
+      id === "speed-media" &&
+      files[0] &&
+      (files[0].type.startsWith("audio/") ||
+        /\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(files[0].name));
+    const audio =
+      [
+        "extract-audio",
+        "convert-audio",
+        "trim-audio",
+        "merge-audio",
+        "normalize-audio",
+      ].includes(id) || isAudioInput;
     const format =
       id === "video-to-gif"
         ? "gif"
@@ -193,12 +279,30 @@ export async function run(id, files, o, ctx = {}) {
       gif: "image/gif",
       png: "image/png",
     }[format];
-    let args,
-      res = [];
+    let res = [];
     async function exec(a) {
       const code = await ff.exec(["-nostdin", "-y", ...a], 300000);
       check(ctx);
       if (code !== 0) throw new Error("FFmpeg: " + logs.slice(-5).join("\n"));
+    }
+    async function probeInput(inName) {
+      const probeLogs = [];
+      const handler = ({ message }) => probeLogs.push(message);
+      ff.on("log", handler);
+      try {
+        await ff.exec(["-nostdin", "-i", inName], 20000);
+      } catch {}
+      ff.off?.("log", handler);
+      const joined = probeLogs.join("\n");
+      const hasAudio = /Stream #\d+:\d+.*Audio:/i.test(joined);
+      const hasVideo = /Stream #\d+:\d+.*Video:/i.test(joined);
+      const durMatch = joined.match(/Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/);
+      const duration = durMatch
+        ? Number(durMatch[1]) * 3600 +
+          Number(durMatch[2]) * 60 +
+          Number(durMatch[3])
+        : 3;
+      return { hasAudio, hasVideo, duration: Math.max(0.1, duration) };
     }
     if (id === "merge-audio") {
       if (files.length < 2)
@@ -230,36 +334,138 @@ export async function run(id, files, o, ctx = {}) {
           `tinylab-audios.${format}`,
         ),
       );
-    } else if (id === "subtitles-video") {
+    } else if (id === "merge-video") {
+      if (files.length < 2)
+        throw new Error(
+          "Selecione ao menos dois vídeos / Select at least two video files.",
+        );
+      const [tw, th] =
+        o.resolution === "1080"
+          ? [1920, 1080]
+          : o.resolution === "vertical"
+            ? [720, 1280]
+            : [1280, 720];
+      const infos = [];
+      for (const n of inputs) infos.push(await probeInput(n));
+      const anyAudio = infos.some((inf) => inf.hasAudio);
+      const vChains = inputs.map(
+        (_, i) =>
+          `[${i}:v]scale=${tw}:${th}:force_original_aspect_ratio=decrease,pad=${tw}:${th}:(ow-iw)/2:(oh-ih)/2:black,fps=30,format=yuv420p,setsar=1[v${i}]`,
+      );
+      if (anyAudio) {
+        const aChains = inputs.map((_, i) =>
+          infos[i].hasAudio
+            ? `[${i}:a]aresample=44100,aformat=sample_fmts=fltp:channel_layouts=stereo[a${i}]`
+            : `anullsrc=r=44100:cl=stereo:d=${infos[i].duration.toFixed(2)}[a${i}]`,
+        );
+        const pairs = inputs.map((_, i) => `[v${i}][a${i}]`).join("");
+        const fc = `${[...vChains, ...aChains].join(";")};${pairs}concat=n=${inputs.length}:v=1:a=1[outv][outa]`;
+        await exec([
+          ...inputs.flatMap((n) => ["-i", n]),
+          "-filter_complex",
+          fc,
+          "-map",
+          "[outv]",
+          "-map",
+          "[outa]",
+          "-c:v",
+          "libx264",
+          "-preset",
+          "ultrafast",
+          "-pix_fmt",
+          "yuv420p",
+          "-c:a",
+          "aac",
+          "-b:a",
+          "160k",
+          "output.mp4",
+        ]);
+      } else {
+        const vInputs = inputs.map((_, i) => `[v${i}]`).join("");
+        const fc = `${vChains.join(";")};${vInputs}concat=n=${inputs.length}:v=1:a=0[outv]`;
+        await exec([
+          ...inputs.flatMap((n) => ["-i", n]),
+          "-filter_complex",
+          fc,
+          "-map",
+          "[outv]",
+          "-c:v",
+          "libx264",
+          "-preset",
+          "ultrafast",
+          "-pix_fmt",
+          "yuv420p",
+          "output.mp4",
+        ]);
+      }
+      res.push(
+        output(
+          new Blob([await ff.readFile("output.mp4")], { type: "video/mp4" }),
+          "tinylab-videos.mp4",
+        ),
+      );
+    } else if (id === "subtitles-video" || id === "burn-subtitles") {
       const subtitles = String(o.subtitles || "");
       if (!/\d\d:\d\d:\d\d[,\.]\d{3}\s*-->/.test(subtitles))
         throw new Error("Legendas SRT inválidas / Invalid SRT subtitles.");
       await ff.writeFile("captions.srt", new TextEncoder().encode(subtitles));
-      await exec([
-        "-i",
-        inputs[0],
-        "-i",
-        "captions.srt",
-        "-map",
-        "0:v:0",
-        "-map",
-        "0:a?",
-        "-map",
-        "1:0",
-        "-c:v",
-        "libx264",
-        "-preset",
-        "ultrafast",
-        "-pix_fmt",
-        "yuv420p",
-        "-c:a",
-        "aac",
-        "-c:s",
-        "mov_text",
-        "-metadata:s:s:0",
-        "language=por",
-        "output.mp4",
-      ]);
+      if (id === "burn-subtitles") {
+        const fontResp = await fetch(asset("DejaVuSans.ttf"));
+        if (!fontResp.ok)
+          throw new Error("Fonte indisponível / Subtitle font unavailable.");
+        try {
+          await ff.createDir("/fonts");
+        } catch {}
+        await ff.writeFile(
+          "/fonts/DejaVuSans.ttf",
+          new Uint8Array(await fontResp.arrayBuffer()),
+        );
+        const fSize = Math.max(10, Math.min(48, Number(o.fontSize || 20)));
+        const marginV = Math.max(4, Math.min(180, Number(o.marginV || 28)));
+        await exec([
+          "-i",
+          inputs[0],
+          "-vf",
+          `subtitles=captions.srt:fontsdir=/fonts:force_style='FontName=DejaVu Sans,Fontsize=${fSize},MarginV=${marginV},Outline=2,Shadow=1'`,
+          "-c:v",
+          "libx264",
+          "-preset",
+          "ultrafast",
+          "-pix_fmt",
+          "yuv420p",
+          "-c:a",
+          "aac",
+          "-b:a",
+          "160k",
+          "output.mp4",
+        ]);
+      } else {
+        await exec([
+          "-i",
+          inputs[0],
+          "-i",
+          "captions.srt",
+          "-map",
+          "0:v:0",
+          "-map",
+          "0:a?",
+          "-map",
+          "1:0",
+          "-c:v",
+          "libx264",
+          "-preset",
+          "ultrafast",
+          "-pix_fmt",
+          "yuv420p",
+          "-c:a",
+          "aac",
+          "-c:s",
+          "mov_text",
+          "-metadata:s:s:0",
+          "language=por",
+          "output.mp4",
+        ]);
+      }
       res.push(
         output(
           new Blob([await ff.readFile("output.mp4")], { type: "video/mp4" }),
@@ -272,7 +478,14 @@ export async function run(id, files, o, ctx = {}) {
           id === "video-frames"
             ? `frame-${i}-%04d.png`
             : `output-${i}.${format}`;
-        await exec(command(id, o, inputs[i], outName));
+        const meta =
+          id === "speed-media"
+            ? {
+                ...(await probeInput(inputs[i])),
+                isAudioOnly: isAudioInput,
+              }
+            : {};
+        await exec(command(id, o, inputs[i], outName, meta));
         if (id === "video-frames") {
           for (const entry of await ff.listDir("/"))
             if (entry.name.startsWith(`frame-${i}-`))

@@ -2,19 +2,41 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { tools, searchTools } from "../src/catalog.js";
 import { pageIndices, validFiles } from "../src/utils.js";
-import { password, crc16, pixPayload, run as dev } from "../src/engines/dev.js";
-import { compareLines, run as text } from "../src/engines/text.js";
-import { removeBackground } from "../src/engines/image.js";
-import { command } from "../src/engines/media.js";
+import {
+  password,
+  crc16,
+  pixPayload,
+  encodeBarcode,
+  scanCodesFromRgba,
+  decodeJwt,
+  testRegex,
+  run as dev,
+} from "../src/engines/dev.js";
+import {
+  compareLines,
+  diffStructured,
+  run as text,
+} from "../src/engines/text.js";
+import {
+  removeBackground,
+  inpaintImage,
+  vectorizeToSvg,
+} from "../src/engines/image.js";
+import { command, atempoChain } from "../src/engines/media.js";
 import { PDFDocument } from "pdf-lib";
-import { run as pdf } from "../src/engines/pdf.js";
+import {
+  run as pdf,
+  readPdfMetadata,
+  findTermRedactionBoxes,
+} from "../src/engines/pdf.js";
 import { run as data } from "../src/engines/data.js";
 import * as XLSX from "xlsx";
 test("catalog IDs are unique, bilingual and all route to engines", () => {
   assert.equal(new Set(tools.map((t) => t.id)).size, tools.length);
-  assert.ok(tools.length >= 100);
+  assert.ok(tools.length >= 132);
   for (const t of tools) {
     assert.ok(t.title.pt && t.title.en && t.description.pt && t.description.en);
+    if (t.external) assert.match(t.external, /^https:\/\/4u\.ia\.br\/app\//);
     for (const o of t.options) assert.ok(o.label.pt && o.label.en);
   }
 });
@@ -22,6 +44,10 @@ test("search handles accents, synonyms and category", () => {
   assert.ok(searchTools("reduzir foto").some((t) => t.id === "compress-image"));
   assert.ok(searchTools("audio").some((t) => t.id === "extract-audio"));
   assert.ok(searchTools("juntar", "pdf").every((t) => t.category === "pdf"));
+  assert.ok(searchTools("tarjar").some((t) => t.id === "redact-pdf"));
+  assert.ok(searchTools("carrossel").some((t) => t.id === "split-image"));
+  assert.ok(searchTools("vetor").some((t) => t.id === "image-to-svg"));
+  assert.ok(searchTools("baixou").some((t) => t.id === "baixou-downloader"));
 });
 test("page ranges fail rather than silently returning a different document", () => {
   assert.deepEqual(pageIndices("1-3, 5, 3", 5), [0, 1, 2, 4]);
@@ -340,4 +366,300 @@ test("service worker only removes TinyLab caches and excludes APIs/POST/external
     });
     assert.equal(intercepted, false);
   }
+});
+
+test("Etapa 3 PDF tools: N-up, metadata edit/wipe, form flatten, markdown-to-pdf, pdf-to-excel and permanent redaction", async () => {
+  const zlib = await import("node:zlib");
+  const { StandardFonts } = await import("pdf-lib");
+  const { extractText } = await import("../src/engines/pdf.js");
+
+  function png1x1() {
+    function chunk(type, buf) {
+      const len = Buffer.alloc(4);
+      len.writeUInt32BE(buf.length);
+      const t = Buffer.from(type);
+      let c = -1;
+      for (const b of Buffer.concat([t, buf])) {
+        c ^= b;
+        for (let k = 0; k < 8; k++) c = (c >>> 1) ^ (0xedb88320 & -(c & 1));
+      }
+      const crc = Buffer.alloc(4);
+      crc.writeUInt32BE((c ^ -1) >>> 0);
+      return Buffer.concat([len, t, buf, crc]);
+    }
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(2, 0);
+    ihdr.writeUInt32BE(2, 4);
+    ihdr[8] = 8;
+    ihdr[9] = 2;
+    const raw = Buffer.from([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    return Buffer.concat([
+      Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+      chunk("IHDR", ihdr),
+      chunk("IDAT", zlib.deflateSync(raw)),
+      chunk("IEND", Buffer.alloc(0)),
+    ]);
+  }
+
+  // 1. Build 4-page PDF with table on page 1 and confidential CPF
+  const d = await PDFDocument.create();
+  const font = await d.embedFont(StandardFonts.Helvetica);
+  for (let i = 0; i < 4; i++) {
+    const p = d.addPage([500, 700]);
+    p.drawText(`PAGINA_${i + 1}`, { x: 40, y: 650, size: 14, font });
+    if (i === 0) {
+      p.drawText("SEGREDO_CPF_12345678900", { x: 40, y: 610, size: 12, font });
+      p.drawText("Produto", { x: 40, y: 550, size: 11, font });
+      p.drawText("Preco", { x: 260, y: 550, size: 11, font });
+      p.drawText("Teclado", { x: 40, y: 530, size: 11, font });
+      p.drawText("R$ 290", { x: 260, y: 530, size: 11, font });
+    }
+  }
+  const form = d.getForm();
+  const tf = form.createTextField("cliente");
+  tf.setText("Maria");
+  tf.addToPage(d.getPage(0), { x: 40, y: 450, width: 140, height: 22 });
+
+  const srcFile = new File([await d.save()], "etapa3.pdf", {
+    type: "application/pdf",
+  });
+
+  // 2. N-up 4-per-sheet -> 1 vector sheet retaining text
+  const nupOut = (
+    await pdf("nup-pdf", [srcFile], {
+      layout: "4",
+      orientation: "auto",
+      border: "yes",
+    })
+  )[0];
+  const nupLoaded = await PDFDocument.load(await nupOut.blob.arrayBuffer());
+  assert.equal(nupLoaded.getPageCount(), 1);
+
+  // 3. Metadata edit & wipe
+  const editedMeta = (
+    await pdf("pdf-metadata", [srcFile], {
+      mode: "edit",
+      title: "Relatorio 4u",
+      author: "Fabiano",
+      subject: "Auditoria",
+      keywords: "pdf, local",
+    })
+  )[0];
+  const metaFile = new File([editedMeta.blob], "meta.pdf", {
+    type: "application/pdf",
+  });
+  const readBack = await readPdfMetadata(metaFile);
+  assert.equal(readBack.title, "Relatorio 4u");
+  assert.equal(readBack.author, "Fabiano");
+  const wipedMeta = (
+    await pdf("pdf-metadata", [metaFile], { mode: "clear" })
+  )[0];
+  const wipedRead = await readPdfMetadata(
+    new File([wipedMeta.blob], "wiped.pdf", { type: "application/pdf" }),
+  );
+  assert.equal(wipedRead.title, "");
+  assert.equal(wipedRead.author, "");
+
+  // 4. Flatten forms removes interactive fields while preserving page count
+  const flatOut = (
+    await pdf("flatten-pdf", [srcFile], { mode: "forms" })
+  )[0];
+  const flatDoc = await PDFDocument.load(await flatOut.blob.arrayBuffer());
+  assert.equal(flatDoc.getForm().getFields().length, 0);
+
+  // 5. Markdown to PDF
+  const mdOut = (
+    await pdf("markdown-to-pdf", [], {
+      content: "# Titulo Principal\n\nParagrafo de teste.\n\n| Col1 | Col2 |\n| --- | --- |\n| A1 | B1 |",
+    })
+  )[0];
+  const mdTexts = await extractText(
+    new File([mdOut.blob], "md.pdf", { type: "application/pdf" }),
+  );
+  assert.match(mdTexts[0], /Titulo Principal/);
+  assert.match(mdTexts[0], /A1/);
+
+  // 6. PDF to Excel extracts columns into XLSX & CSV
+  const xlOuts = await pdf("pdf-to-excel", [srcFile], {
+    pages: "1",
+    format: "both",
+  });
+  assert.equal(xlOuts.length, 2);
+  const wb = XLSX.read(await xlOuts[0].blob.arrayBuffer(), { type: "array" });
+  const csvTxt = XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]]);
+  assert.match(csvTxt, /Produto,Preco/);
+  assert.match(csvTxt, /Teclado,R\$ 290/);
+
+  // 7. Permanent PDF redaction destroys secret text on page 1 while keeping page 2 intact
+  const autoBoxes = await findTermRedactionBoxes(srcFile, "SEGREDO_CPF");
+  assert.ok((autoBoxes.get(0) || []).length >= 1);
+  const redactedOut = (
+    await pdf(
+      "redact-pdf",
+      [srcFile],
+      { terms: "SEGREDO_CPF", redactColor: "#000000" },
+      { rasterizeRedactedPage: async () => png1x1() },
+    )
+  )[0];
+  const redTexts = await extractText(
+    new File([redactedOut.blob], "red.pdf", { type: "application/pdf" }),
+  );
+  assert.doesNotMatch(redTexts[0], /SEGREDO_CPF/);
+  assert.match(redTexts[1], /PAGINA_2/);
+});
+
+test("Etapa 3 Image tools: multi-pass inpainting and Marching Squares SVG vectorizer", () => {
+  // 1. Inpaint reconstructs masked red spot inside horizontal gradient
+  const W = 24,
+    H = 24;
+  const rgba = new Uint8ClampedArray(W * H * 4);
+  const mask = new Uint8Array(W * H);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const i = y * W + x;
+      const val = x * 10;
+      rgba[i * 4] = val;
+      rgba[i * 4 + 1] = val;
+      rgba[i * 4 + 2] = val;
+      rgba[i * 4 + 3] = 255;
+      if (x >= 10 && x <= 13 && y >= 10 && y <= 13) {
+        rgba[i * 4] = 255;
+        rgba[i * 4 + 1] = 0;
+        rgba[i * 4 + 2] = 0;
+        mask[i] = 1;
+      }
+    }
+  }
+  inpaintImage(rgba, mask, W, H, 16);
+  const mid = (11 * W + 11) * 4;
+  assert.ok(Math.abs(rgba[mid] - 110) < 12);
+  assert.ok(Math.abs(rgba[mid + 1] - 110) < 12);
+
+  // 2. Vectorizer produces scalable SVG with evenodd paths and drops white border
+  const vRgba = new Uint8ClampedArray(20 * 20 * 4);
+  for (let y = 0; y < 20; y++) {
+    for (let x = 0; x < 20; x++) {
+      const i = (y * 20 + x) * 4;
+      const inside = x >= 4 && x <= 15 && y >= 4 && y <= 15;
+      const hole = x >= 8 && x <= 11 && y >= 8 && y <= 11;
+      const dark = inside && !hole;
+      vRgba.set(dark ? [20, 40, 200, 255] : [255, 255, 255, 255], i);
+    }
+  }
+  const svgColor = vectorizeToSvg(vRgba, 20, 20, {
+    mode: "color",
+    colors: 3,
+    detail: "medium",
+    ignoreWhite: "yes",
+  });
+  assert.match(svgColor, /<svg[^>]+viewBox="0 0 20 20"/);
+  assert.match(svgColor, /fill-rule="evenodd"/);
+  assert.doesNotMatch(svgColor, /fill="#ffffff"/i);
+});
+
+test("Etapa 3 Media, Dev & Text tools: speed/crop FFmpeg args, 1D/2D barcode round-trip, JWT HMAC and regex/diff", async () => {
+  // 1. Media speed & crop commands
+  assert.equal(atempoChain(3), "atempo=2,atempo=1.5");
+  assert.equal(atempoChain(0.5), "atempo=0.5");
+  const cropArgs = command(
+    "crop-video",
+    { aspect: "9:16", mode: "pad" },
+    "in.mp4",
+    "out.mp4",
+  );
+  assert.ok(cropArgs.some((a) => a.includes("boxblur")));
+  const speedArgs = command(
+    "speed-media",
+    { speed: 2, _hasVideo: true, _hasAudio: true },
+    "in.mp4",
+    "out.mp4",
+  );
+  assert.ok(speedArgs.some((a) => a.includes("setpts=PTS/2")));
+  assert.ok(speedArgs.some((a) => a.includes("atempo=2")));
+
+  // 2. Barcode encode -> RGBA scanline render -> scanCodesFromRgba round-trip
+  for (const [fmt, val, expected] of [
+    ["CODE128", "TinyLab-42", "TinyLab-42"],
+    ["EAN13", "789123456789", "7891234567895"],
+    ["EAN8", "7891234", "78912342"],
+  ]) {
+    const enc = encodeBarcode(val, fmt);
+    const quiet = 12,
+      scale = 3,
+      w = (enc.bits.length + quiet * 2) * scale,
+      h = 40;
+    const rgba = new Uint8ClampedArray(w * h * 4).fill(255);
+    for (let i = 0; i < enc.bits.length; i++) {
+      if (enc.bits[i] === "1") {
+        for (let y = 4; y < h - 4; y++) {
+          for (let dx = 0; dx < scale; dx++) {
+            const p = (y * w + (quiet + i) * scale + dx) * 4;
+            rgba[p] = rgba[p + 1] = rgba[p + 2] = 0;
+          }
+        }
+      }
+    }
+    const hits = await scanCodesFromRgba(rgba, w, h);
+    assert.equal(hits[0]?.value, expected);
+  }
+
+  // 3. QR Code Studio outputs vector SVG + text payload
+  const qrOuts = await dev("qr-code-studio", [], {
+    kind: "text",
+    content: "https://4u.ia.br/app/tinylab/",
+    outputFormat: "svg",
+    ecLevel: "H",
+    color: "#111111",
+    background: "#ffffff",
+  });
+  assert.ok(qrOuts.some((o) => o.name.endsWith(".svg")));
+
+  // 4. JWT decoder + WebCrypto HS256 verification
+  const b64u = (str) =>
+    Buffer.from(str)
+      .toString("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
+  const hdr = b64u(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const pld = b64u(JSON.stringify({ sub: "user-1", exp: 4102444800 }));
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode("super-secret"),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sigBuf = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    new TextEncoder().encode(`${hdr}.${pld}`),
+  );
+  const sig = Buffer.from(sigBuf)
+    .toString("base64")
+    .replace(/\+/g, "-")
+    .replace(/\//g, "_")
+    .replace(/=+$/, "");
+  const jwtValid = await decodeJwt(`${hdr}.${pld}.${sig}`, "super-secret");
+  assert.equal(jwtValid.signatureCheck, "valid");
+  assert.equal(jwtValid.claims.expired, false);
+  const jwtInvalid = await decodeJwt(`${hdr}.${pld}.${sig}`, "wrong-secret");
+  assert.equal(jwtInvalid.signatureCheck, "invalid");
+
+  // 5. Regex tester & structured diff
+  const rx = testRegex("(\\w+)@([\\w.]+)", "g", "Contato: oi@4u.ia.br", "[$1]");
+  assert.equal(rx.count, 1);
+  assert.equal(rx.matches[0].captures[0], "oi");
+  assert.equal(rx.replaced, "Contato: [oi]");
+
+  const diffOut = await text("compare-text", [], {
+    content: "linha 1\nvelha\nlinha 3",
+    other: "linha 1\nnova\nlinha 3",
+    viewMode: "split",
+  });
+  assert.ok(Array.isArray(diffOut[1].diffRows));
+  const changed = diffStructured("a\nb", "a\nc");
+  assert.equal(changed[1].type, "change");
+  assert.equal(changed[1].leftText, "b");
+  assert.equal(changed[1].rightText, "c");
 });

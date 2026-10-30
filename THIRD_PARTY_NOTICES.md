@@ -44,6 +44,10 @@ Source: https://github.com/MikeKovarik/exifr.git
 License: LGPL-3.0
 Source: https://github.com/hoppergee/heic-to.git
 
+## jsqr 1.4.0
+License: Apache-2.0
+Source: https://github.com/cozmo/jsQR
+
 ## jszip 3.10.1
 License: (MIT OR GPL-3.0-or-later)
 Source: https://github.com/Stuk/jszip.git

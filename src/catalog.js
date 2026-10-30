@@ -356,6 +356,119 @@ pdf(
   "Adjust page margins in points.",
   [num("margin", "Margem a remover (pt)", "Margin to remove (pt)", 20, 0, 300)],
 );
+pdf(
+  "pdf-to-excel",
+  "PDF para Excel / CSV",
+  "PDF to Excel / CSV",
+  "Extraia tabelas e colunas de cada página em planilha XLSX ou CSV.",
+  "Extract tables and columns from each page into XLSX or CSV.",
+  [
+    range,
+    sel("format", "Formato de saída", "Output format", [
+      ["xlsx", "Excel (.xlsx)"],
+      ["csv", "CSV (.csv)"],
+      ["both", "Excel + CSV"],
+    ]),
+  ],
+);
+pdf(
+  "flatten-pdf",
+  "Achatar PDF (Flatten)",
+  "Flatten PDF",
+  "Fixe campos de formulário e camadas em páginas não editáveis.",
+  "Lock form fields and layers into non-editable pages.",
+  [
+    sel("mode", "Modo de achatamento", "Flatten mode", [
+      [
+        "forms",
+        "Formulários (mantém texto vetorial selecionável)",
+        "Forms (keeps selectable vector text)",
+      ],
+      [
+        "full",
+        "Páginas inteiras fixas (rasteriza tudo)",
+        "Full fixed pages (rasterizes everything)",
+      ],
+    ]),
+    num("scale", "Nitidez no modo fixo (1–3)", "Fixed mode sharpness (1–3)", 2, 1, 3),
+  ],
+);
+pdf(
+  "redact-pdf",
+  "Tarjar dados no PDF",
+  "Redact PDF",
+  "Oculte CPFs, nomes e trechos sensíveis destruindo o texto subjacente.",
+  "Black out sensitive data while permanently destroying underlying text.",
+  [
+    num("page", "Página atual", "Current page", 1, 1, 10000),
+    opt(
+      "terms",
+      "Termos para tarjar automaticamente (separados por vírgula)",
+      "Terms to auto-redact (comma-separated)",
+    ),
+    sel("redactColor", "Cor da tarja", "Redaction color", [
+      ["#000000", "Preto sólido", "Solid black"],
+      ["#ffffff", "Branco sólido", "Solid white"],
+    ]),
+  ],
+);
+pdf(
+  "nup-pdf",
+  "Várias páginas por folha (N-up)",
+  "N-up PDF (Pages per sheet)",
+  "Monte 2, 4, 6 ou 9 páginas por folha A4 mantendo nitidez vetorial.",
+  "Place 2, 4, 6 or 9 pages per A4 sheet while preserving vector sharpness.",
+  [
+    sel("layout", "Páginas por folha", "Pages per sheet", [
+      ["2", "2 por folha (2×1)", "2 per sheet (2×1)"],
+      ["4", "4 por folha (2×2)", "4 per sheet (2×2)"],
+      ["6", "6 por folha (3×2)", "6 per sheet (3×2)"],
+      ["9", "9 por folha (3×3)", "9 per sheet (3×3)"],
+    ]),
+    sel("orientation", "Orientação da folha", "Sheet orientation", [
+      ["auto", "Automática", "Automatic"],
+      ["landscape", "Paisagem (Horizontal)", "Landscape"],
+      ["portrait", "Retrato (Vertical)", "Portrait"],
+    ]),
+    sel("border", "Borda nas mini-páginas", "Page frame border", [
+      ["yes", "Com borda sutil", "Subtle border"],
+      ["no", "Sem borda", "No border"],
+    ]),
+  ],
+);
+pdf(
+  "markdown-to-pdf",
+  "Markdown / HTML para PDF",
+  "Markdown / HTML to PDF",
+  "Converta Markdown ou HTML com títulos, listas, código e tabelas em PDF.",
+  "Convert Markdown or HTML with headings, lists, code and tables to PDF.",
+  [
+    area(
+      "content",
+      "Markdown ou HTML",
+      "Markdown or HTML",
+      "# Relatório TinyLab\n\nDocumento gerado **100% localmente**.\n\n- Títulos e listas\n- Tabelas e blocos de código\n\n| Item | Status |\n| --- | --- |\n| Privacidade | Local |",
+    ),
+  ],
+  { input: "text" },
+);
+pdf(
+  "pdf-metadata",
+  "Metadados do PDF",
+  "PDF metadata editor",
+  "Visualize, edite ou limpe título, autor, assunto e palavras-chave.",
+  "Inspect, edit or wipe title, author, subject and keywords.",
+  [
+    sel("mode", "Ação", "Action", [
+      ["edit", "Salvar metadados abaixo", "Save metadata below"],
+      ["clear", "Limpar todos os metadados", "Wipe all metadata"],
+    ]),
+    opt("title", "Título", "Title"),
+    opt("author", "Autor", "Author"),
+    opt("subject", "Assunto", "Subject"),
+    opt("keywords", "Palavras-chave (separadas por vírgula)", "Keywords (comma-separated)"),
+  ],
+);
 const image = (id, pt, en, desc, endesc, options = [], extra = {}) =>
   add("image", id, pt, en, desc, endesc, options, {
     accept: "image/*,.heic,.heif",
@@ -595,6 +708,129 @@ image(
   "Regrave a imagem sem os metadados do arquivo original.",
   "Re-encode the image without original file metadata.",
 );
+image(
+  "blur-bg",
+  "Desfocar fundo (Bokeh)",
+  "Blur background (Bokeh)",
+  "Destaque o assunto com desfoque de fundo estilo retrato por IA + pincel de refino.",
+  "Keep the subject sharp with AI portrait background blur + refine brush.",
+  [
+    sel("subject", "Modo do modelo", "Model mode", [
+      [
+        "general",
+        "Geral (produtos, objetos e pessoas)",
+        "General (products, objects & people)",
+      ],
+      [
+        "portrait",
+        "Retrato rápido (selfies e pessoas)",
+        "Fast portrait (selfies & people)",
+      ],
+    ]),
+    num("radius", "Intensidade do desfoque (px)", "Blur strength (px)", 18, 3, 60),
+  ],
+  { multiple: false, model: true, accept: "image/*" },
+);
+image(
+  "remove-object",
+  "Remover objetos / marca-d’água",
+  "Remove objects & watermarks",
+  "Pinte sobre textos, datas, fios ou objetos indesejados para reconstituir a área.",
+  "Paint over unwanted text, dates, wires or objects to reconstruct the area.",
+  [num("brushSize", "Tamanho do pincel (px)", "Brush size (px)", 28, 4, 140)],
+  { multiple: false },
+);
+image(
+  "image-to-svg",
+  "PNG / JPG para SVG (Vetorizar)",
+  "Image to SVG vectorizer",
+  "Transforme logos, ícones e ilustrações em curvas vetoriais SVG escaláveis.",
+  "Trace logos, icons and illustrations into scalable SVG vector paths.",
+  [
+    sel("mode", "Modo de vetorização", "Tracing mode", [
+      ["color", "Cores / Posterizado", "Color / Posterized"],
+      ["mono", "Silhueta monocromática", "Monochrome silhouette"],
+    ]),
+    num("colors", "Número de cores (2–12)", "Color count (2–12)", 6, 2, 12),
+    sel("detail", "Detalhamento das curvas", "Curve detail", [
+      ["medium", "Equilibrado", "Balanced"],
+      ["high", "Alta fidelidade", "High detail"],
+      ["smooth", "Suave (menos nós)", "Smooth (fewer nodes)"],
+    ]),
+    sel("ignoreWhite", "Fundo claro", "Light background", [
+      ["yes", "Tornar transparente", "Make transparent"],
+      ["no", "Manter fundo", "Keep background"],
+    ]),
+  ],
+  { multiple: false },
+);
+image(
+  "split-image",
+  "Dividir em grade / Carrossel",
+  "Grid & carousel splitter",
+  "Fatie panoramas e artes em carrosséis contínuos ou grades para Instagram.",
+  "Slice panoramas and artwork into seamless Instagram carousels or grids.",
+  [
+    sel("preset", "Formato rápido", "Quick preset", [
+      ["carousel-3", "Carrossel 3 slides (3×1)", "3-slide carousel (3×1)"],
+      ["carousel-5", "Carrossel 5 slides (5×1)", "5-slide carousel (5×1)"],
+      ["grid-3x3", "Grade Instagram 9 fotos (3×3)", "Instagram 9-tile grid (3×3)"],
+      ["grid-3x2", "Grade 6 fotos (3×2)", "6-tile grid (3×2)"],
+      ["custom", "Personalizado (abaixo)", "Custom (below)"],
+    ]),
+    num("columns", "Colunas (modo personalizado)", "Columns (custom mode)", 3, 1, 12),
+    num("rows", "Linhas (modo personalizado)", "Rows (custom mode)", 1, 1, 12),
+    format,
+  ],
+  { multiple: false },
+);
+image(
+  "pfp-maker",
+  "Foto de perfil (PFPMaker)",
+  "Profile picture maker (PFPMaker)",
+  "Crie avatares profissionais com gradiente, anel neon e recorte automático.",
+  "Create studio avatars with gradients, neon rings and automatic cutout.",
+  [
+    sel("cutout", "Recorte do fundo", "Background cutout", [
+      ["auto", "Remover fundo sólido automaticamente", "Auto-remove solid background"],
+      ["keep", "Manter fundo atual da foto", "Keep current background"],
+    ]),
+    sel("bgStyle", "Estilo do fundo", "Backdrop style", [
+      ["gradient", "Gradiente vibrante", "Vibrant gradient"],
+      ["solid", "Cor sólida", "Solid color"],
+      ["outline", "Transparente + anel", "Transparent + ring"],
+    ]),
+    sel("shape", "Formato", "Shape", [
+      ["circle", "Circular", "Circle"],
+      ["squircle", "Ícone arredondado", "Squircle"],
+      ["square", "Quadrado", "Square"],
+    ]),
+    color,
+    opt("accentColor", "Cor secundária / anel", "Accent / ring color", "color", "#00dfd8"),
+    num("ring", "Espessura do anel (px)", "Ring width (px)", 24, 0, 80),
+  ],
+  { multiple: false },
+);
+image(
+  "meme-mockup",
+  "Gerador de Meme e Mockup",
+  "Meme & screenshot mockup",
+  "Enquadre prints em janela estilo macOS com sombra ou crie memes clássicos.",
+  "Frame screenshots in a macOS-style studio window or create classic memes.",
+  [
+    sel("style", "Modo", "Mode", [
+      ["mockup", "Mockup de Print (Janela Studio)", "Screenshot Mockup (Studio Window)"],
+      ["meme", "Meme Clássico (Texto Topo/Base)", "Classic Meme (Top/Bottom Text)"],
+      ["caption", "Meme Moderno (Faixa Superior)", "Modern Meme (Top Caption Bar)"],
+    ]),
+    opt("topText", "Título da janela / Texto superior", "Window title / Top text", "text", ""),
+    opt("bottomText", "Texto inferior (modo Meme)", "Bottom text (Meme mode)", "text", ""),
+    color,
+    opt("accentColor", "Segunda cor do fundo", "Second backdrop color", "color", "#0e7490"),
+    num("padding", "Margem externa (px)", "Outer padding (px)", 64, 16, 200),
+  ],
+  { multiple: false },
+);
 const media = (id, pt, en, desc, endesc, options = [], extra = {}) =>
   add("media", id, pt, en, desc, endesc, options, {
     accept: "video/*,audio/*,.mkv,.mov,.avi,.m4a,.ogg,.flac",
@@ -753,6 +989,101 @@ media(
       "1\n00:00:00,000 --> 00:00:02,000\nTinyLab",
     ),
   ],
+);
+media(
+  "burn-subtitles",
+  "Queimar legendas no vídeo (SRT)",
+  "Burn SRT subtitles into video",
+  "Grave legendas permanentemente na imagem do vídeo (Reels, Shorts e aulas).",
+  "Permanently hardcode SRT subtitles onto the video frames.",
+  [
+    area(
+      "subtitles",
+      "Legendas SRT",
+      "SRT subtitles",
+      "1\n00:00:00,000 --> 00:00:02,500\nLegendas gravadas no TinyLab!",
+    ),
+    num("fontSize", "Tamanho da fonte", "Font size", 20, 10, 48),
+    num("marginV", "Margem inferior (px)", "Bottom margin (px)", 28, 6, 180),
+  ],
+);
+media(
+  "merge-video",
+  "Juntar vídeos",
+  "Merge videos",
+  "Combine múltiplos clipes na ordem escolhida normalizando áudio e resolução.",
+  "Combine multiple video clips in order while normalizing audio and resolution.",
+  [
+    sel("resolution", "Resolução de saída", "Output resolution", [
+      ["720", "HD Horizontal (1280×720)"],
+      ["1080", "Full HD Horizontal (1920×1080)"],
+      ["vertical", "HD Vertical Reels/Shorts (720×1280)"],
+    ]),
+  ],
+  { multiple: true },
+);
+media(
+  "crop-video",
+  "Vídeo 9:16 Reels / Shorts",
+  "Crop video (9:16 Reels / 1:1)",
+  "Adapte vídeos horizontais para Reels, Shorts, TikTok ou formato quadrado.",
+  "Convert landscape videos to 9:16 Reels/Shorts/TikTok or 1:1 square.",
+  [
+    sel("aspect", "Proporção", "Aspect ratio", [
+      ["9:16", "Vertical Reels / Shorts / TikTok (9:16)"],
+      ["1:1", "Quadrado Feed (1:1)"],
+      ["4:5", "Retrato Instagram (4:5)"],
+      ["16:9", "Horizontal YouTube (16:9)"],
+    ]),
+    sel("mode", "Enquadramento", "Framing", [
+      ["crop", "Preencher tela (corte central)", "Fill screen (center crop)"],
+      ["pad", "Vídeo inteiro + fundo desfocado", "Full video + blurred background"],
+    ]),
+  ],
+);
+media(
+  "speed-media",
+  "Velocidade de vídeo / áudio",
+  "Video & audio speed",
+  "Acelere gravações ou crie efeito câmera lenta (0.5× a 3×).",
+  "Speed up recordings or create slow-motion effects (0.5× to 3×).",
+  [
+    sel("speed", "Velocidade", "Playback speed", [
+      ["0.5", "0.5× (Câmera lenta / Slow)"],
+      ["0.75", "0.75×"],
+      ["1.25", "1.25×"],
+      ["1.5", "1.5×"],
+      ["2", "2× (Rápido / Fast)"],
+      ["3", "3× (Ultra rápido / Ultra fast)"],
+    ]),
+  ],
+);
+media(
+  "voice-recorder",
+  "Gravador de voz (Microfone)",
+  "Voice recorder (Microphone)",
+  "Grave locuções, notas e reuniões com ondas sonoras ao vivo no navegador.",
+  "Record voiceovers, notes and meetings with live waveform in your browser.",
+  [],
+  { input: "record" },
+);
+media(
+  "clipcut-studio",
+  "Editor Multifaixas (ClipCut)",
+  "Multitrack Video Editor (ClipCut)",
+  "Abra o editor completo 4u-Labs com múltiplas faixas, cortes finos e efeitos.",
+  "Open the full 4u-Labs multitrack video editor for advanced cuts and effects.",
+  [],
+  { external: "https://4u.ia.br/app/clipcut/" },
+);
+media(
+  "baixou-downloader",
+  "Baixar Vídeos & Áudios (BAIXOU!!)",
+  "Download Videos & Audio (BAIXOU!!)",
+  "Baixe mídias de redes sociais e plataformas compatíveis no app irmão BAIXOU!!.",
+  "Download media from supported platforms using the sister app BAIXOU!!.",
+  [],
+  { external: "https://4u.ia.br/app/baixou/" },
 );
 const data = (id, pt, en, desc, endesc, options = [], extra = {}) =>
   add("data", id, pt, en, desc, endesc, options, extra);
@@ -945,11 +1276,17 @@ txt(
 );
 txt(
   "compare-text",
-  "Comparar textos",
-  "Compare texts",
-  "Compare linhas e encontre inclusões e exclusões.",
-  "Compare lines and find additions and deletions.",
-  [area("other", "Segundo texto", "Second text")],
+  "Comparar textos (Diff Visual)",
+  "Compare texts (Visual Diff)",
+  "Compare código ou documentos lado a lado com destaque colorido de alterações.",
+  "Compare code or documents side by side with colored change highlights.",
+  [
+    area("other", "Segundo texto (versão nova)", "Second text (updated version)"),
+    sel("viewMode", "Visualização", "Diff view", [
+      ["split", "Lado a lado colorido", "Side-by-side colored"],
+      ["unified", "Unificado (+/-)", "Unified (+/-)"],
+    ]),
+  ],
 );
 txt(
   "markdown-preview",
@@ -973,10 +1310,10 @@ const dev = (id, pt, en, desc, endesc, options = [], extra = {}) =>
   add("dev", id, pt, en, desc, endesc, options, { input: "text", ...extra });
 dev(
   "qr-code-studio",
-  "QR Code Studio",
-  "QR Code Studio",
-  "Crie QR de URL, texto, Wi-Fi, contato ou PIX.",
-  "Create QR codes for URLs, text, Wi-Fi, contacts or PIX.",
+  "QR Code Studio (PNG, SVG & Logo)",
+  "QR Code Studio (PNG, SVG & Logo)",
+  "Crie QR de URL, PIX, Wi-Fi ou vCard em PNG e SVG vetorial com logo central.",
+  "Create URL, PIX, Wi-Fi or vCard QR codes in PNG & vector SVG with center logo.",
   [
     sel("kind", "Tipo de QR", "QR type", [
       ["text", "Texto / URL", "Text / URL"],
@@ -1007,8 +1344,92 @@ dev(
       0,
       1000000,
     ),
+    sel("outputFormat", "Exportação", "Export format", [
+      ["both", "PNG + SVG Vetorial", "PNG + Vector SVG"],
+      ["png", "Somente PNG (1024 px)", "PNG only (1024 px)"],
+      ["svg", "Somente SVG Vetorial", "Vector SVG only"],
+    ]),
+    sel("ecLevel", "Correção de erro", "Error correction", [
+      ["M", "Média (M · 15%)", "Medium (M · 15%)"],
+      ["Q", "Alta (Q · 25%)", "Quartile (Q · 25%)"],
+      ["H", "Máxima (H · 30% · ideal p/ Logo)", "High (H · 30% · best for Logo)"],
+    ]),
+    num("logoScale", "Tamanho da logo central (%)", "Center logo size (%)", 20, 10, 28),
     color,
     opt("background", "Cor de fundo", "Background color", "color", "#ffffff"),
+  ],
+);
+dev(
+  "qr-scanner",
+  "Ler QR Code / Código de Barras",
+  "Scan QR & Barcode",
+  "Decodifique QR Codes, PIX e códigos de barras usando a câmera ou enviando imagem.",
+  "Decode QR codes, PIX and barcodes using your camera or by uploading an image.",
+  [],
+  { input: "files", accept: "image/*", multiple: true },
+);
+dev(
+  "barcode-generator",
+  "Gerador de Código de Barras",
+  "Barcode generator (EAN-13 / Code 128)",
+  "Gere etiquetas EAN-13, EAN-8 e Code 128 em SVG vetorial e PNG.",
+  "Generate EAN-13, EAN-8 and Code 128 barcode labels in vector SVG and PNG.",
+  [
+    sel("format", "Padrão", "Standard", [
+      ["CODE128", "Code 128 (letras e números)", "Code 128 (alphanumeric)"],
+      ["EAN13", "EAN-13 (varejo / GTIN · 12 ou 13 dígitos)", "EAN-13 (retail · 12 or 13 digits)"],
+      ["EAN8", "EAN-8 (compacto · 7 ou 8 dígitos)", "EAN-8 (compact · 7 or 8 digits)"],
+    ]),
+    opt("content", "Código / valor", "Code / value", "text", "789123456789"),
+    sel("showText", "Legenda numérica", "Human-readable text", [
+      ["yes", "Exibir abaixo das barras", "Show below bars"],
+      ["no", "Somente barras", "Bars only"],
+    ]),
+    opt("color", "Cor das barras", "Bar color", "color", "#111111"),
+    opt("background", "Cor de fundo", "Background color", "color", "#ffffff"),
+  ],
+);
+dev(
+  "jwt-decoder",
+  "Decodificador JWT",
+  "JWT decoder & verifier",
+  "Inspecione Header, Payload, expiração e verifique assinaturas HMAC localmente.",
+  "Inspect Header, Payload, expiration and verify HMAC signatures locally.",
+  [
+    area(
+      "content",
+      "Token JWT (header.payload.signature)",
+      "JWT token (header.payload.signature)",
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI0dS1sYWJzIiwibmFtZSI6IlRpbnlMYWIiLCJpYXQiOjE3MzU2ODk2MDB9.4P7_sample",
+    ),
+    opt(
+      "secret",
+      "Segredo HMAC opcional (para validar assinatura HS256/384/512)",
+      "Optional HMAC secret (to verify HS256/384/512 signature)",
+    ),
+  ],
+);
+dev(
+  "regex-tester",
+  "Testador de Regex",
+  "Regex tester & extractor",
+  "Teste expressões regulares, grupos de captura e substituições em tempo real.",
+  "Test regular expressions, capture groups and replacements safely.",
+  [
+    opt("pattern", "Expressão regular (sem barras)", "Regular expression (without slashes)", "text", "(\\w+)@([\\w.-]+)"),
+    sel("flags", "Flags", "Flags", [
+      ["g", "g (global)"],
+      ["gi", "gi (global + ignorar maiúsculas)"],
+      ["gm", "gm (global + multilinha)"],
+      ["gim", "gim (global + insensível + multilinha)"],
+    ]),
+    area(
+      "content",
+      "Texto de entrada",
+      "Test string",
+      "Contatos: suporte@4u.ia.br e dev@tinylab.app",
+    ),
+    opt("replacement", "Substituir por (opcional, ex.: [$1])", "Replace with (optional, e.g. [$1])"),
   ],
 );
 dev(
@@ -1285,6 +1706,87 @@ ai(
   [],
   { input: "files", accept: "image/*" },
 );
+ai(
+  "ai-email",
+  "Escrever E-mail com IA",
+  "AI Email Writer",
+  "Redija e-mails comerciais, cobranças educadas, respostas ou pedidos formais.",
+  "Draft business emails, polite follow-ups, replies or formal requests.",
+  [
+    area("content", "Assunto / pontos principais", "Subject / key points"),
+    sel("emailKind", "Tipo de e-mail", "Email type", [
+      ["professional", "Comercial / Profissional", "Business / Professional"],
+      ["followup", "Cobrança / Follow-up educado", "Polite follow-up"],
+      ["reply", "Resposta rápida e cordial", "Quick polite reply"],
+      ["support", "Atendimento ao cliente", "Customer support"],
+    ]),
+    aiTier,
+  ],
+);
+ai(
+  "ai-article",
+  "Gerador de Artigo / Blog",
+  "AI Article & Blog Writer",
+  "Estruture posts completos com subtítulos, esboços ou artigos para LinkedIn.",
+  "Draft structured blog posts with headings, outlines or LinkedIn articles.",
+  [
+    area("content", "Tema, público e tópicos desejados", "Topic, audience & key points"),
+    sel("structure", "Formato", "Structure", [
+      ["article", "Artigo completo com subtítulos", "Full article with headings"],
+      ["outline", "Esboço / Estrutura de tópicos", "Detailed outline"],
+      ["linkedin", "Post de autoridade (LinkedIn)", "Thought-leadership post (LinkedIn)"],
+    ]),
+    aiTier,
+  ],
+);
+ai(
+  "ai-product",
+  "Descrição de Produto (E-commerce)",
+  "AI Product Description",
+  "Transforme ficha técnica em copy persuasiva para loja virtual ou marketplace.",
+  "Turn specs into persuasive copy for online stores and marketplaces.",
+  [
+    area("content", "Nome do produto, diferenciais e especificações", "Product name, benefits & specs"),
+    sel("channel", "Canal de venda", "Sales channel", [
+      ["ecommerce", "Loja Virtual / Landing Page", "Online Store / Landing Page"],
+      ["marketplace", "Mercado Livre / Shopee / Amazon", "Marketplace listing"],
+      ["short", "Catálogo curto / WhatsApp", "Short catalog / WhatsApp"],
+    ]),
+    aiTier,
+  ],
+);
+ai(
+  "ai-youtube",
+  "Roteiro YouTube / Reels / Shorts",
+  "AI Video & Shorts Script",
+  "Crie roteiros com gancho inicial, retenção e chamada para ação (CTA).",
+  "Generate scripts with strong hooks, retention beats and call-to-action.",
+  [
+    area("content", "Tema ou ideia do vídeo", "Video topic or idea"),
+    sel("videoType", "Formato do vídeo", "Video format", [
+      ["shorts", "Reels / Shorts / TikTok (60s)", "Reels / Shorts / TikTok (60s)"],
+      ["youtube", "Vídeo completo para YouTube", "Full YouTube video"],
+      ["titles", "10 ideias de títulos + ganchos", "10 viral titles + hooks"],
+    ]),
+    aiTier,
+  ],
+);
+ai(
+  "ai-faq",
+  "Gerador de FAQ e Flashcards",
+  "AI FAQ & Study Flashcards",
+  "Extraia perguntas frequentes (FAQ) ou cartões de estudo a partir de um texto.",
+  "Generate FAQs or Q&A study flashcards from source notes or text.",
+  [
+    area("content", "Texto-base, aula ou documentação", "Source text, lecture or docs"),
+    sel("studyMode", "Formato de saída", "Output format", [
+      ["faq", "Perguntas Frequentes (FAQ)", "Frequently Asked Questions (FAQ)"],
+      ["flashcards", "Flashcards (Pergunta → Resposta)", "Flashcards (Q → A)"],
+      ["quiz", "Quiz de revisão (Múltipla escolha)", "Review Quiz (Multiple choice)"],
+    ]),
+    aiTier,
+  ],
+);
 export const tools = TOOLS;
 export function findTool(id) {
   return tools.find((t) => t.id === id);
@@ -1305,8 +1807,18 @@ export const synonyms = {
   planilha: "excel csv spreadsheet",
   senha: "password proteger",
   recortar: "cortar crop trim",
-  audio: "audio som musica",
-  video: "video filme",
+  audio: "audio som musica voz microfone",
+  video: "video filme reels shorts tiktok clipcut",
+  baixar: "download baixou youtube instagram tiktok",
+  download: "baixar baixou video audio",
+  apagar: "remover tarjar redact inpaint objeto marca",
+  limpar: "clean remover metadados strip",
+  vetor: "svg vetorizar vectorize",
+  carrossel: "instagram grade split carousel",
+  avatar: "perfil pfp foto",
+  print: "screenshot captura mockup meme",
+  codigo: "barcode qr ean128 jwt regex diff",
+  legenda: "srt subtitles caption queimar hardcode",
 };
 export function searchTools(query, category = "all", lang = "pt") {
   const terms = normalize(query).split(/\s+/).filter(Boolean);

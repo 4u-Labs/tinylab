@@ -56,7 +56,14 @@ let active = null,
   recorder = null,
   recordStream = null,
   recordChunks = [],
-  elapsedTimer = null;
+  elapsedTimer = null,
+  redactMap = new Map(),
+  inpaintMaskCanvas = null,
+  qrLogoFile = null,
+  scannerStream = null,
+  scannerTimer = null,
+  waveAudioCtx = null,
+  waveRaf = null;
 const dialog = $("#workspace");
 const icons = {
   pdf: "▤",
@@ -239,7 +246,7 @@ function renderCatalog() {
     ? list
         .map(
           (tool) =>
-            `<article class="tool-card ${tool.category}"><div class="card-top"><span class="tool-icon">${icons[tool.category]}</span><button class="favorite ${favorites.includes(tool.id) ? "saved" : ""}" data-favorite="${tool.id}" aria-label="${L("Favoritar", "Favorite")} ${esc(tool.title[lang])}" aria-pressed="${favorites.includes(tool.id)}">${favorites.includes(tool.id) ? "★" : "☆"}</button></div><span class="card-category">${esc(categories.find((c) => c.id === tool.category).label[lang])}</span><h3><button data-tool="${tool.id}">${esc(tool.title[lang])}</button></h3><p>${esc(tool.description[lang])}</p><div class="card-bottom"><span class="local-badge">${tool.companion ? L("Serviço efêmero", "Ephemeral service") : tool.model ? L("Modelo local", "Local model") : L("No navegador", "In browser")}</span><button class="card-open" data-tool="${tool.id}" aria-label="${t("open")} ${esc(tool.title[lang])}">↗</button></div></article>`,
+            `<article class="tool-card ${tool.category}"><div class="card-top"><span class="tool-icon">${icons[tool.category]}</span><button class="favorite ${favorites.includes(tool.id) ? "saved" : ""}" data-favorite="${tool.id}" aria-label="${L("Favoritar", "Favorite")} ${esc(tool.title[lang])}" aria-pressed="${favorites.includes(tool.id)}">${favorites.includes(tool.id) ? "★" : "☆"}</button></div><span class="card-category">${esc(categories.find((c) => c.id === tool.category).label[lang])}</span><h3><button data-tool="${tool.id}">${esc(tool.title[lang])}</button></h3><p>${esc(tool.description[lang])}</p><div class="card-bottom"><span class="local-badge">${tool.external ? L("App 4u-Labs ↗", "4u-Labs App ↗") : tool.companion ? L("Serviço efêmero", "Ephemeral service") : tool.model ? L("Modelo local", "Local model") : L("No navegador", "In browser")}</span><button class="card-open" data-tool="${tool.id}" aria-label="${t("open")} ${esc(tool.title[lang])}">↗</button></div></article>`,
         )
         .join("")
     : `<p class="catalog-empty">${t("empty")}</p>`;
@@ -260,8 +267,8 @@ function helpText(tool) {
   const basic =
     tool.input === "files"
       ? L(
-          "1. Selecione os arquivos. 2. Ajuste as opções e confira a prévia. 3. Processe e baixe o resultado. Arraste a lista para mudar a ordem.",
-          "1. Select your files. 2. Adjust options and check the preview. 3. Process and download. Drag the file list to change the order.",
+          "1. Selecione ou cole (Ctrl+V) os arquivos. 2. Ajuste as opções e confira a prévia. 3. Processe e baixe o resultado.",
+          "1. Select or paste (Ctrl+V) your files. 2. Adjust options and check the preview. 3. Process and download.",
         )
       : L(
           "Preencha os campos, processe e copie ou baixe o resultado.",
@@ -276,9 +283,17 @@ function helpText(tool) {
       "Desenhe, destaque ou insira texto em uma ou mais páginas. As anotações preservam o texto vetorial original.",
       "Draw, highlight or insert text across one or multiple pages while preserving original vector text.",
     ),
+    "redact-pdf": L(
+      "Arraste caixas sobre áreas confidenciais ou informe palavras-chave. As páginas tarjadas são regravadas sem o texto original e os metadados são limpos.",
+      "Drag boxes over confidential areas or enter keywords. Redacted pages are rewritten without underlying text and metadata is wiped.",
+    ),
     "crop-image": L(
       "Arraste sobre a imagem para selecionar o recorte.",
       "Drag on the image to select your crop.",
+    ),
+    "remove-object": L(
+      "Pinte diretamente sobre marcas-d’água, datas ou objetos na prévia para reconstituir a área.",
+      "Paint directly over watermarks, dates or unwanted objects on the preview to reconstruct the area.",
     ),
     "compress-pdf": L(
       "O modo Inteligente recomprime imagens internas mantendo texto selecionável e links. A rasterização converte páginas inteiras em imagem.",
@@ -300,17 +315,33 @@ function helpText(tool) {
       "Ideal para logos, ícones e fundos uniformes. Após processar, você pode refinar qualquer detalhe com o pincel Apagar/Restaurar.",
       "Ideal for logos, icons and solid backgrounds. After processing, refine any detail with the Erase/Restore brush.",
     ),
+    "blur-bg": L(
+      "Detecta o assunto com IA local e aplica desfoque estilo retrato. Use o pincel de refino abaixo do resultado para ajustar qualquer detalhe.",
+      "Detects the subject with local AI and applies portrait bokeh blur. Use the refine brush below the result to tweak any detail.",
+    ),
     "video-frames": L(
       "Até 200 quadros por execução para proteger a memória do dispositivo.",
       "Up to 200 frames per run to protect device memory.",
     ),
     "subtitles-video": L(
-      "Cria uma faixa de legendas selecionável. Ative-a no player após baixar.",
-      "Creates a selectable subtitle track. Enable it in your player after downloading.",
+      "Cria uma faixa de legendas selecionável. Para gravar na imagem do vídeo, use Queimar legendas (SRT).",
+      "Creates a selectable subtitle track. To hardcode onto frames, use Burn SRT subtitles.",
+    ),
+    "burn-subtitles": L(
+      "Grava as legendas SRT diretamente nos quadros do vídeo, ideal para Reels, Shorts e TikTok.",
+      "Hardcodes SRT subtitles directly onto the video frames, ideal for Reels, Shorts and TikTok.",
     ),
     "screen-recorder": L(
       "O áudio depende do navegador e da origem escolhida. A gravação usa o formato suportado pelo navegador.",
       "Audio depends on the browser and capture source. Recording uses a format supported by your browser.",
+    ),
+    "voice-recorder": L(
+      "Permita o uso do microfone no navegador. O áudio é gravado localmente no seu dispositivo.",
+      "Allow microphone access in your browser. Audio is recorded locally on your device.",
+    ),
+    "qr-scanner": L(
+      "Envie ou cole (Ctrl+V) uma imagem com QR Code / Código de Barras, ou use o botão de leitura ao vivo pela câmera.",
+      "Upload or paste (Ctrl+V) an image with a QR Code / Barcode, or scan live with your camera.",
     ),
     "upscale-image": L(
       "Ampliação por interpolação. Não recupera detalhes que não existem na imagem original.",
@@ -324,20 +355,34 @@ function modelNotice(tool) {
   const size =
     tool.id === "ai-upscale"
       ? "~50 MB"
-      : tool.id === "ai-remove-bg"
+      : tool.id === "ai-remove-bg" || tool.id === "blur-bg"
         ? "~26–42 MB"
         : tool.id === "transcribe"
           ? "~75 MB"
           : "~400 MB / 1.1 GB";
   return `<div class="model-notice"><span>✧</span><p>${L(`Na primeira execução, baixa um modelo (${size}) e usa WebGPU automaticamente quando disponível (ou WASM). A inferência ocorre neste dispositivo.`, `The first run downloads a model (${size}) and automatically uses WebGPU when available (or WASM). Inference runs on this device.`)}</p></div>`;
 }
-function openTool(id, { chainFiles = [], content = "" } = {}) {
+function stopScanner() {
+  clearInterval(scannerTimer);
+  scannerTimer = null;
+  scannerStream?.getTracks().forEach((t) => t.stop());
+  scannerStream = null;
+}
+function openTool(id, { chainFiles = [], content = "", fromPaste = false } = {}) {
   const tool = findTool(id);
   if (!tool) return;
+  if (tool.external) {
+    recent = [tool.id, ...recent.filter((rid) => rid !== tool.id)].slice(0, 20);
+    save("recent", recent);
+    renderCatalog();
+    window.open(tool.external, "_blank", "noopener,noreferrer");
+    return;
+  }
   controller?.abort();
   controller = null;
   cleanInputUrls();
   stopRecorder(true);
+  stopScanner();
   previewGeneration++;
   lastFocus = document.activeElement;
   active = tool;
@@ -347,6 +392,9 @@ function openTool(id, { chainFiles = [], content = "" } = {}) {
   overlay = null;
   pageOverlays = new Map();
   sigStamps = new Map();
+  redactMap = new Map();
+  inpaintMaskCanvas = null;
+  qrLogoFile = null;
   uploadedSigImg?.close?.();
   uploadedSigImg = null;
   stampRedraw = null;
@@ -359,14 +407,94 @@ function openTool(id, { chainFiles = [], content = "" } = {}) {
   ).label[lang];
   $("#workspaceTitle").textContent = tool.title[lang];
   $("#workspaceDescription").textContent = tool.description[lang];
+  const ecoBar =
+    tool.category === "media"
+      ? `<div class="ecosystem-shortcuts"><span>${L("Apps irmãos 4u-Labs:", "4u-Labs sister apps:")}</span><a href="https://4u.ia.br/app/clipcut/" target="_blank" rel="noopener noreferrer">✂ ClipCut (${L("Editor Multifaixas", "Multitrack Editor")}) ↗</a><a href="https://4u.ia.br/app/baixou/" target="_blank" rel="noopener noreferrer">⬇ BAIXOU!! (${L("Baixar Vídeos", "Video Downloader")}) ↗</a></div>`
+      : "";
+  const pasteQuickTools =
+    fromPaste && chainFiles[0]?.type?.startsWith("image/")
+      ? [
+          ["remove-bg", L("Remover Fundo", "Remove BG")],
+          ["ai-remove-bg", L("Fundo IA", "AI Cutout")],
+          ["meme-mockup", L("Mockup de Print", "Screenshot Mockup")],
+          ["remove-object", L("Apagar Objeto", "Remove Object")],
+          ["crop-image", L("Recortar", "Crop")],
+          ["ocr-image", L("Extrair Texto", "OCR")],
+          ["qr-scanner", L("Ler QR / Barras", "Scan QR")],
+        ]
+      : fromPaste && /\.pdf$/i.test(chainFiles[0]?.name || "")
+        ? [
+            ["compress-pdf", L("Comprimir PDF", "Compress PDF")],
+            ["sign-pdf", L("Assinar PDF", "Sign PDF")],
+            ["redact-pdf", L("Tarjar PDF", "Redact PDF")],
+            ["pdf-to-word", L("PDF → Word", "PDF → Word")],
+            ["pdf-to-excel", L("PDF → Excel", "PDF → Excel")],
+          ]
+        : [];
+  const pasteBar = pasteQuickTools.length
+    ? `<div class="paste-switch-bar"><span>⚡ ${L("Colado com Ctrl+V — trocar ação:", "Pasted via Ctrl+V — switch tool:")}</span><div class="paste-chips">${pasteQuickTools.map(([tid, lbl]) => `<button type="button" class="secondary small ${tid === tool.id ? "is-active" : ""}" data-paste-switch="${tid}">${esc(lbl)}</button>`).join("")}</div></div>`
+    : "";
+  const extraControls =
+    tool.id === "qr-scanner"
+      ? `<div class="camera-scanner"><button type="button" class="secondary" id="cameraScanBtn">📷 ${L("Ler com a Câmera ao vivo", "Scan with Live Camera")}</button><div id="cameraStage" class="camera-stage" hidden><video id="cameraVideo" playsinline muted></video></div></div>`
+      : tool.id === "burn-subtitles" || tool.id === "subtitles-video"
+        ? `<div class="sig-upload-bar"><label class="secondary file-pill">📂 ${L("Importar arquivo .srt", "Import .srt file")}<input id="srtFileInput" type="file" accept=".srt,text/plain" hidden></label></div>`
+        : tool.id === "qr-code-studio"
+          ? `<div class="sig-upload-bar"><label class="secondary file-pill"><span id="qrLogoText">🖼 ${L("Opcional: Logo central (PNG/JPG)", "Optional: Center logo (PNG/JPG)")}</span><input id="qrLogoInput" type="file" accept="image/*" hidden></label><button type="button" class="secondary small" id="qrLogoClear" hidden>×</button></div>`
+          : "";
   $("#workspaceBody").innerHTML =
-    `<div class="workspace-input"><form id="toolForm"><fieldset id="toolFields">${tool.input === "files" ? `<label class="dropzone" id="dropzone" tabindex="0"><input id="fileInput" type="file" accept="${esc(tool.accept)}" ${tool.multiple ? "multiple" : ""} hidden><span class="drop-icon">＋</span><strong>${t("drop")}</strong><small>${t("dropSub")}</small></label><ol id="fileList" class="file-list"></ol>` : ""}${tool.input === "record" ? `<div class="record-panel"><span>◉</span><p>${helpText(tool)}</p><button type="button" class="primary" id="recordToggle">${L("Iniciar gravação", "Start recording")}</button><p id="recordClock">00:00</p></div>` : ""}<div class="controls">${tool.options.map(field).join("")}</div><div id="formFields" class="controls"></div><div id="inputPreview" class="input-preview"></div>${modelNotice(tool)}<details class="help"><summary>${t("help")}</summary><p>${esc(helpText(tool))}</p></details></fieldset><div class="execution-bar">${tool.input !== "record" ? `<button class="primary" type="submit" id="execute">${tool.model ? L("Baixar modelo e processar", "Download model & process") : t("run")} <span>→</span></button>` : ""}<button type="button" class="secondary" id="clearInput">${t("reset")}</button><button type="button" class="secondary danger" id="cancel" hidden>${t("cancel")}</button></div></form><div class="progress-box"><progress id="progress" max="100" value="0" hidden></progress><p id="status" role="status" aria-live="polite">${t("ready")}</p></div></div><div class="workspace-output"><div class="output-heading"><span class="eyebrow">${t("output")}</span><div id="resultActions"></div></div><div id="results"></div></div>`;
+    `<div class="workspace-input">${ecoBar}${pasteBar}<form id="toolForm"><fieldset id="toolFields">${tool.input === "files" ? `<label class="dropzone" id="dropzone" tabindex="0"><input id="fileInput" type="file" accept="${esc(tool.accept)}" ${tool.multiple ? "multiple" : ""} hidden><span class="drop-icon">＋</span><strong>${t("drop")}</strong><small>${t("dropSub")} · Ctrl+V</small></label><ol id="fileList" class="file-list"></ol>` : ""}${tool.input === "record" ? `<div class="record-panel"><span>${tool.id === "voice-recorder" ? "🎙" : "◉"}</span><p>${helpText(tool)}</p><button type="button" class="primary" id="recordToggle">${L("Iniciar gravação", "Start recording")}</button><canvas id="recordWave" class="record-wave" width="480" height="76" hidden></canvas><p id="recordClock">00:00</p></div>` : ""}${extraControls}<div class="controls">${tool.options.map(field).join("")}</div><div id="formFields" class="controls"></div><div id="inputPreview" class="input-preview"></div>${modelNotice(tool)}<details class="help"><summary>${t("help")}</summary><p>${esc(helpText(tool))}</p></details></fieldset><div class="execution-bar">${tool.input !== "record" ? `<button class="primary" type="submit" id="execute">${tool.model ? L("Baixar modelo e processar", "Download model & process") : t("run")} <span>→</span></button>` : ""}<button type="button" class="secondary" id="clearInput">${t("reset")}</button><button type="button" class="secondary danger" id="cancel" hidden>${t("cancel")}</button></div></form><div class="progress-box"><progress id="progress" max="100" value="0" hidden></progress><p id="status" role="status" aria-live="polite">${t("ready")}</p></div></div><div class="workspace-output"><div class="output-heading"><span class="eyebrow">${t("output")}</span><div id="resultActions"></div></div><div id="results"></div></div>`;
   cleanResults();
+  $("#workspaceBody")
+    .querySelectorAll("[data-paste-switch]")
+    .forEach((btn) => {
+      btn.onclick = () =>
+        openTool(btn.dataset.pasteSwitch, {
+          chainFiles: files.length ? [...files] : chainFiles,
+          fromPaste: true,
+        });
+    });
+  if ($("#srtFileInput")) {
+    $("#srtFileInput").onchange = async (e) => {
+      const f = e.target.files?.[0];
+      if (!f) return;
+      $("#option-subtitles").value = await f.text();
+      cleanResults();
+      toast(L("Arquivo .srt carregado!", ".srt file loaded!"));
+    };
+  }
+  if ($("#qrLogoInput")) {
+    $("#qrLogoInput").onchange = (e) => {
+      const f = e.target.files?.[0];
+      if (!f) return;
+      qrLogoFile = f;
+      $("#qrLogoText").textContent = `✓ ${f.name}`;
+      $("#qrLogoClear").hidden = false;
+      if ($("#option-ecLevel")) $("#option-ecLevel").value = "H";
+      cleanResults();
+    };
+    $("#qrLogoClear").onclick = () => {
+      qrLogoFile = null;
+      $("#qrLogoInput").value = "";
+      $("#qrLogoText").textContent =
+        "🖼 " +
+        L(
+          "Opcional: Logo central (PNG/JPG)",
+          "Optional: Center logo (PNG/JPG)",
+        );
+      $("#qrLogoClear").hidden = true;
+      cleanResults();
+    };
+  }
+  if ($("#cameraScanBtn")) {
+    $("#cameraScanBtn").onclick = toggleCameraScanner;
+  }
   $("#toolForm").addEventListener("submit", execute);
   $("#clearInput").onclick = () => {
     controller?.abort();
     cleanInputUrls();
     stopRecorder(true);
+    stopScanner();
     files = [];
     previewGeneration++;
     pageOrder = null;
@@ -374,6 +502,21 @@ function openTool(id, { chainFiles = [], content = "" } = {}) {
     overlay = null;
     pageOverlays = new Map();
     sigStamps = new Map();
+    redactMap = new Map();
+    inpaintMaskCanvas = null;
+    qrLogoFile = null;
+    if ($("#qrLogoText"))
+      $("#qrLogoText").textContent =
+        "🖼 " +
+        L(
+          "Opcional: Logo central (PNG/JPG)",
+          "Optional: Center logo (PNG/JPG)",
+        );
+    if ($("#qrLogoClear")) $("#qrLogoClear").hidden = true;
+    if ($("#cameraStage")) $("#cameraStage").hidden = true;
+    if ($("#cameraScanBtn"))
+      $("#cameraScanBtn").textContent =
+        "📷 " + L("Ler com a Câmera ao vivo", "Scan with Live Camera");
     uploadedSigImg?.close?.();
     uploadedSigImg = null;
     stampRedraw = null;
@@ -389,7 +532,11 @@ function openTool(id, { chainFiles = [], content = "" } = {}) {
     if (controller) return;
     cleanResults();
     status(t("ready"));
-    if (e.target.name === "page" || e.target.name === "signMode")
+    if (
+      e.target.name === "page" ||
+      e.target.name === "signMode" ||
+      e.target.name === "redactColor"
+    )
       renderInputPreview();
     else if (
       ["sigText", "stampScale", "color"].includes(e.target.name) &&
@@ -500,6 +647,8 @@ function fileChanged() {
   overlay = null;
   pageOverlays = new Map();
   sigStamps = new Map();
+  redactMap = new Map();
+  inpaintMaskCanvas = null;
   uploadedSigImg?.close?.();
   uploadedSigImg = null;
   stampRedraw = null;
@@ -772,6 +921,192 @@ async function renderInputPreview() {
       }
       return;
     }
+    if (active.id === "redact-pdf") {
+      const { loadView, renderPage } = await import("./engines/pdf.js"),
+        doc = await loadView(file);
+      try {
+        const i = Math.max(0, Number($("#option-page").value) - 1);
+        if (i >= doc.numPages)
+          throw new Error(L("Página inexistente", "Page does not exist"));
+        const page = await doc.getPage(i + 1),
+          v = page.getViewport({ scale: 1 }),
+          c = await renderPage(doc, i, Math.min(1.5, 900 / v.width));
+        if (generation !== previewGeneration) return;
+        const nav = document.createElement("div");
+        nav.className = "pdf-page-bar";
+        const prevBtn = document.createElement("button");
+        prevBtn.type = "button";
+        prevBtn.className = "secondary";
+        prevBtn.textContent = "←";
+        prevBtn.disabled = i === 0;
+        prevBtn.onclick = () => {
+          $("#option-page").value = i;
+          renderInputPreview();
+        };
+        const pageInfo = document.createElement("span");
+        const updateRedactLabel = () => {
+          const marked = [...redactMap.entries()]
+            .filter(([, b]) => b.length > 0)
+            .map(([idx]) => idx + 1)
+            .sort((a, b) => a - b);
+          pageInfo.textContent =
+            L(
+              `Página ${i + 1} de ${doc.numPages}`,
+              `Page ${i + 1} of ${doc.numPages}`,
+            ) +
+            (marked.length
+              ? ` · ${L("Tarjadas", "Redacted")}: ${marked.join(", ")}`
+              : "");
+        };
+        const nextBtn = document.createElement("button");
+        nextBtn.type = "button";
+        nextBtn.className = "secondary";
+        nextBtn.textContent = "→";
+        nextBtn.disabled = i >= doc.numPages - 1;
+        nextBtn.onclick = () => {
+          $("#option-page").value = i + 2;
+          renderInputPreview();
+        };
+        nav.append(prevBtn, pageInfo, nextBtn);
+        const hint = document.createElement("p");
+        hint.className = "hint";
+        hint.textContent = L(
+          "Arraste retângulos sobre dados confidenciais nesta página ou use o campo de termos acima.",
+          "Drag rectangles over sensitive areas on this page or enter terms above.",
+        );
+        const stage = document.createElement("div");
+        stage.className = "draw-stage";
+        stage.append(c);
+        const top = canvas(c.width, c.height);
+        top.className = "draw-overlay";
+        stage.append(top);
+        const drawBoxes = (draft = null) => {
+          const g = top.getContext("2d");
+          g.clearRect(0, 0, top.width, top.height);
+          const fillHex =
+            $("#option-redactColor")?.value === "#ffffff"
+              ? "#ffffff"
+              : "#000000";
+          const allBoxes = [...(redactMap.get(i) || [])];
+          if (draft) allBoxes.push(draft);
+          for (const b of allBoxes) {
+            const bx = b.x * top.width,
+              by = b.y * top.height,
+              bw = b.w * top.width,
+              bh = b.h * top.height;
+            g.fillStyle = fillHex;
+            g.globalAlpha = 0.88;
+            g.fillRect(bx, by, bw, bh);
+            g.globalAlpha = 1;
+            g.save();
+            g.strokeStyle = "#ff5a7a";
+            g.lineWidth = 1.6;
+            g.setLineDash([4, 3]);
+            g.strokeRect(bx, by, bw, bh);
+            g.restore();
+          }
+          updateRedactLabel();
+        };
+        let dragStart = null;
+        const pt = (e) => {
+          const r = top.getBoundingClientRect();
+          return {
+            x: Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)),
+            y: Math.max(0, Math.min(1, (e.clientY - r.top) / r.height)),
+          };
+        };
+        top.onpointerdown = (e) => {
+          dragStart = pt(e);
+          top.setPointerCapture(e.pointerId);
+        };
+        top.onpointermove = (e) => {
+          if (!dragStart) return;
+          const p = pt(e);
+          drawBoxes({
+            x: Math.min(dragStart.x, p.x),
+            y: Math.min(dragStart.y, p.y),
+            w: Math.abs(dragStart.x - p.x),
+            h: Math.abs(dragStart.y - p.y),
+          });
+        };
+        top.onpointerup = (e) => {
+          if (!dragStart) return;
+          const p = pt(e);
+          const box = {
+            x: Math.min(dragStart.x, p.x),
+            y: Math.min(dragStart.y, p.y),
+            w: Math.abs(dragStart.x - p.x),
+            h: Math.abs(dragStart.y - p.y),
+          };
+          dragStart = null;
+          if (box.w >= 0.008 && box.h >= 0.008) {
+            const list = redactMap.get(i) || [];
+            list.push(box);
+            redactMap.set(i, list);
+            cleanResults();
+          }
+          drawBoxes();
+        };
+        top.onpointercancel = () => {
+          dragStart = null;
+          drawBoxes();
+        };
+        drawBoxes();
+        const bar = document.createElement("div");
+        bar.className = "refine-toolbar";
+        const undoBtn = document.createElement("button");
+        undoBtn.type = "button";
+        undoBtn.className = "secondary small";
+        undoBtn.textContent = "↶ " + L("Desfazer última", "Undo last");
+        undoBtn.onclick = () => {
+          const list = redactMap.get(i) || [];
+          list.pop();
+          if (!list.length) redactMap.delete(i);
+          drawBoxes();
+          cleanResults();
+        };
+        const clrBtn = document.createElement("button");
+        clrBtn.type = "button";
+        clrBtn.className = "secondary small";
+        clrBtn.textContent = L("Limpar página", "Clear page");
+        clrBtn.onclick = () => {
+          redactMap.delete(i);
+          drawBoxes();
+          cleanResults();
+        };
+        bar.append(undoBtn, clrBtn);
+        el.append(nav, hint, stage, bar);
+      } finally {
+        await doc.destroy();
+      }
+      return;
+    }
+    if (active.id === "pdf-metadata") {
+      const { readPdfMetadata, loadView, renderPage } = await import(
+        "./engines/pdf.js"
+      );
+      const meta = await readPdfMetadata(file);
+      if (generation !== previewGeneration) return;
+      if ($("#option-title")) $("#option-title").value = meta.title || "";
+      if ($("#option-author")) $("#option-author").value = meta.author || "";
+      if ($("#option-subject")) $("#option-subject").value = meta.subject || "";
+      if ($("#option-keywords"))
+        $("#option-keywords").value = meta.keywords || "";
+      const info = document.createElement("p");
+      info.className = "hint";
+      info.textContent = `${meta.pages} ${L("página(s)", "page(s)")}${meta.creator ? ` · Creator: ${meta.creator}` : ""}${meta.producer ? ` · Producer: ${meta.producer}` : ""}`;
+      el.append(info);
+      const doc = await loadView(file);
+      try {
+        const p = await doc.getPage(1),
+          v = p.getViewport({ scale: 1 }),
+          c = await renderPage(doc, 0, Math.min(1, 360 / v.width));
+        if (generation === previewGeneration) el.append(c);
+      } finally {
+        await doc.destroy();
+      }
+      return;
+    }
     if (file.type.startsWith("image/") || /\.(heic|heif)$/i.test(file.name)) {
       const { bitmap } = await import("./utils.js"),
         img = await bitmap(file);
@@ -787,6 +1122,7 @@ async function renderInputPreview() {
       img.close?.();
       el.append(c);
       if (active.id === "crop-image") setupCrop(c, el);
+      else if (active.id === "remove-object") setupObjectMask(c, el);
       return;
     }
     if (file.type.startsWith("video/") || file.type.startsWith("audio/")) {
@@ -797,6 +1133,9 @@ async function renderInputPreview() {
       media.preload = "metadata";
       media.src = url(file, true);
       el.append(media);
+      if ($("#option-start") && $("#option-duration")) {
+        setupMediaTimeline(media, el);
+      }
       return;
     }
     if (/\.pdf$/i.test(file.name)) {
@@ -819,6 +1158,259 @@ async function renderInputPreview() {
         L("Prévia indisponível: ", "Preview unavailable: ") + e.message;
       el.append(p);
     }
+  }
+}
+function setupObjectMask(c, el) {
+  const hint = document.createElement("p");
+  hint.className = "hint";
+  hint.textContent = L(
+    "Pinte sobre o objeto, texto ou marca-d’água que deseja remover.",
+    "Paint over the object, text or watermark you want to remove.",
+  );
+  const stage = document.createElement("div");
+  stage.className = "draw-stage";
+  c.replaceWith(hint, stage);
+  stage.append(c);
+  const maskCv = canvas(c.width, c.height);
+  maskCv.className = "draw-overlay mask-overlay";
+  stage.append(maskCv);
+  inpaintMaskCanvas = maskCv;
+  const g = maskCv.getContext("2d");
+  let drawing = false;
+  const pt = (e) => {
+    const r = maskCv.getBoundingClientRect();
+    return [
+      ((e.clientX - r.left) * maskCv.width) / r.width,
+      ((e.clientY - r.top) * maskCv.height) / r.height,
+    ];
+  };
+  maskCv.onpointerdown = (e) => {
+    drawing = true;
+    maskCv.setPointerCapture(e.pointerId);
+    const [x, y] = pt(e);
+    const sz = Math.max(4, Number($("#option-brushSize")?.value || 28));
+    g.strokeStyle = "#ff3b6b";
+    g.fillStyle = "#ff3b6b";
+    g.lineWidth = sz;
+    g.lineCap = "round";
+    g.lineJoin = "round";
+    g.beginPath();
+    g.arc(x, y, sz / 2, 0, Math.PI * 2);
+    g.fill();
+    g.beginPath();
+    g.moveTo(x, y);
+  };
+  maskCv.onpointermove = (e) => {
+    if (!drawing) return;
+    g.lineTo(...pt(e));
+    g.stroke();
+  };
+  maskCv.onpointerup = maskCv.onpointercancel = () => {
+    if (!drawing) return;
+    drawing = false;
+    cleanResults();
+  };
+  const clearBtn = document.createElement("button");
+  clearBtn.type = "button";
+  clearBtn.className = "secondary small";
+  clearBtn.style.marginTop = "10px";
+  clearBtn.textContent = L("Limpar seleção pintada", "Clear painted mask");
+  clearBtn.onclick = () => {
+    g.clearRect(0, 0, maskCv.width, maskCv.height);
+    cleanResults();
+  };
+  el.append(clearBtn);
+}
+function fmtClock(sec) {
+  const s = Math.max(0, Number(sec) || 0);
+  const m = Math.floor(s / 60);
+  const rem = (s - m * 60).toFixed(1).padStart(4, "0");
+  return `${String(m).padStart(2, "0")}:${rem}`;
+}
+function setupMediaTimeline(media, el) {
+  const mount = () => {
+    const total = media.duration;
+    if (!Number.isFinite(total) || total <= 0.1 || !el.isConnected) return;
+    const startInput = $("#option-start"),
+      durInput = $("#option-duration");
+    if (!startInput || !durInput || el.querySelector(".trim-timeline")) return;
+    let sVal = Math.max(0, Math.min(total - 0.1, Number(startInput.value) || 0));
+    let dVal = Number(durInput.value) || Math.min(10, total);
+    let eVal = Math.min(total, Math.max(sVal + 0.1, sVal + dVal));
+    durInput.value = Number((eVal - sVal).toFixed(2));
+    startInput.max = Number(total.toFixed(2));
+    durInput.max = Number(total.toFixed(2));
+
+    const wrap = document.createElement("div");
+    wrap.className = "trim-timeline";
+    wrap.innerHTML = `<div class="trim-head"><span class="trim-badge" id="trimStartLbl"></span><strong id="trimDurLbl"></strong><span class="trim-badge" id="trimEndLbl"></span></div><div class="trim-track-wrap"><div class="trim-track-bg"></div><div class="trim-track-fill" id="trimFill"></div><input type="range" class="trim-range trim-start" min="0" max="${total}" step="0.1" value="${sVal}" aria-label="${L("Início do corte", "Trim start")}"><input type="range" class="trim-range trim-end" min="0" max="${total}" step="0.1" value="${eVal}" aria-label="${L("Fim do corte", "Trim end")}"></div><div class="trim-actions"><button type="button" class="secondary small" id="trimPreviewBtn">▶ ${L("Pré-visualizar trecho", "Preview clip")}</button></div>`;
+    el.append(wrap);
+
+    const rStart = wrap.querySelector(".trim-start"),
+      rEnd = wrap.querySelector(".trim-end"),
+      fill = wrap.querySelector("#trimFill"),
+      lblS = wrap.querySelector("#trimStartLbl"),
+      lblD = wrap.querySelector("#trimDurLbl"),
+      lblE = wrap.querySelector("#trimEndLbl"),
+      prevBtn = wrap.querySelector("#trimPreviewBtn");
+
+    const paintUI = () => {
+      const leftPct = (sVal / total) * 100;
+      const widthPct = Math.max(0.5, ((eVal - sVal) / total) * 100);
+      fill.style.left = `${leftPct}%`;
+      fill.style.width = `${widthPct}%`;
+      lblS.textContent = `${L("Início", "Start")}: ${fmtClock(sVal)}`;
+      lblE.textContent = `${L("Fim", "End")}: ${fmtClock(eVal)}`;
+      lblD.textContent = `${L("Trecho", "Clip")}: ${(eVal - sVal).toFixed(1)}s`;
+    };
+
+    rStart.oninput = () => {
+      sVal = Math.min(Number(rStart.value), eVal - 0.1);
+      rStart.value = sVal;
+      startInput.value = Number(sVal.toFixed(2));
+      durInput.value = Number((eVal - sVal).toFixed(2));
+      if (Number.isFinite(media.duration)) media.currentTime = sVal;
+      paintUI();
+      cleanResults();
+    };
+    rEnd.oninput = () => {
+      eVal = Math.max(Number(rEnd.value), sVal + 0.1);
+      rEnd.value = eVal;
+      durInput.value = Number((eVal - sVal).toFixed(2));
+      if (Number.isFinite(media.duration)) media.currentTime = eVal;
+      paintUI();
+      cleanResults();
+    };
+    const syncFromFields = () => {
+      sVal = Math.max(0, Math.min(total - 0.1, Number(startInput.value) || 0));
+      const d = Math.max(0.1, Number(durInput.value) || 0.1);
+      eVal = Math.min(total, sVal + d);
+      rStart.value = sVal;
+      rEnd.value = eVal;
+      paintUI();
+    };
+    startInput.addEventListener("input", syncFromFields);
+    durInput.addEventListener("input", syncFromFields);
+
+    let stopPreviewOnTime = false;
+    media.addEventListener("timeupdate", () => {
+      if (stopPreviewOnTime && media.currentTime >= eVal) {
+        media.pause();
+        stopPreviewOnTime = false;
+      }
+    });
+    prevBtn.onclick = () => {
+      stopPreviewOnTime = true;
+      media.currentTime = sVal;
+      media.play().catch(() => {});
+    };
+    paintUI();
+  };
+  if (Number.isFinite(media.duration) && media.duration > 0.1) mount();
+  else media.addEventListener("loadedmetadata", mount, { once: true });
+}
+async function toggleCameraScanner() {
+  const btn = $("#cameraScanBtn"),
+    stage = $("#cameraStage"),
+    video = $("#cameraVideo");
+  if (!btn || !stage || !video) return;
+  if (scannerStream) {
+    stopScanner();
+    stage.hidden = true;
+    btn.textContent = "📷 " + L("Ler com a Câmera ao vivo", "Scan with Live Camera");
+    status(t("ready"));
+    return;
+  }
+  if (!navigator.mediaDevices?.getUserMedia) {
+    status(
+      L(
+        "Câmera não disponível neste navegador. Envie ou cole uma imagem.",
+        "Camera unavailable in this browser. Upload or paste an image.",
+      ),
+      "error",
+    );
+    return;
+  }
+  try {
+    cleanResults();
+    scannerStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: "environment" } },
+      audio: false,
+    });
+    video.srcObject = scannerStream;
+    stage.hidden = false;
+    await video.play();
+    btn.textContent = "⏹ " + L("Parar câmera", "Stop camera");
+    status(
+      L(
+        "Aponte a câmera para o QR Code ou Código de Barras…",
+        "Point your camera at a QR code or barcode…",
+      ),
+    );
+    const { scanCodesFromRgba } = await import("./engines/dev.js");
+    const det =
+      typeof BarcodeDetector !== "undefined" ? new BarcodeDetector() : null;
+    let busy = false;
+    scannerTimer = setInterval(async () => {
+      if (busy || !scannerStream || video.readyState < 2) return;
+      busy = true;
+      try {
+        const vw = video.videoWidth || 640,
+          vh = video.videoHeight || 480;
+        const sc = Math.min(1, 960 / Math.max(vw, vh));
+        const cw = Math.max(1, Math.round(vw * sc)),
+          ch = Math.max(1, Math.round(vh * sc));
+        const c = canvas(cw, ch),
+          g = c.getContext("2d");
+        g.drawImage(video, 0, 0, cw, ch);
+        const found = [];
+        if (det) {
+          try {
+            for (const b of await det.detect(c)) {
+              if (b.rawValue) found.push({ format: b.format, value: b.rawValue });
+            }
+          } catch {}
+        }
+        const px = g.getImageData(0, 0, cw, ch);
+        for (const hit of await scanCodesFromRgba(px.data, cw, ch)) {
+          if (!found.some((f) => f.value === hit.value)) found.push(hit);
+        }
+        if (found.length) {
+          stopScanner();
+          stage.hidden = true;
+          btn.textContent =
+            "📷 " + L("Ler com a Câmera ao vivo", "Scan with Live Camera");
+          const txt = found.map((f) => `[${f.format}] ${f.value}`).join("\n\n");
+          const jsonTxt = JSON.stringify(
+            [{ source: "camera", codes: found }],
+            null,
+            2,
+          );
+          const outs = [
+            {
+              blob: new Blob([txt], { type: "text/plain;charset=utf-8" }),
+              name: "camera-scan.txt",
+              text: txt,
+            },
+            {
+              blob: new Blob([jsonTxt], { type: "application/json" }),
+              name: "camera-scan.json",
+              text: jsonTxt,
+            },
+          ];
+          results = outs;
+          await renderResults(outs);
+          status(t("done"), "success");
+          toast(L("Código lido com sucesso!", "Code scanned successfully!"));
+        }
+      } finally {
+        busy = false;
+      }
+    }, 280);
+  } catch (err) {
+    stopScanner();
+    stage.hidden = true;
+    status(err.message, "error");
   }
 }
 function setupCrop(c, el) {
@@ -1131,6 +1723,35 @@ async function execute(e) {
         );
       o.overlays = collected;
     }
+    if (active.id === "redact-pdf") {
+      const redactBoxes = [...redactMap.entries()]
+        .filter(([, b]) => b.length > 0)
+        .map(([page, boxes]) => ({ page, boxes }));
+      if (!redactBoxes.length && !String(o.terms || "").trim())
+        throw new Error(
+          L(
+            "Desenhe ao menos uma tarja na prévia ou informe termos para ocultar.",
+            "Draw at least one redaction box on the preview or enter terms to redact.",
+          ),
+        );
+      o.redactBoxes = redactBoxes;
+    }
+    if (active.id === "remove-object") {
+      if (!inpaintMaskCanvas || !canvasHasInk(inpaintMaskCanvas))
+        throw new Error(
+          L(
+            "Pinte sobre o objeto ou marca-d’água na prévia antes de processar.",
+            "Paint over the object or watermark on the preview before processing.",
+          ),
+        );
+      o.maskBytes = await (
+        await toBlob(inpaintMaskCanvas, "image/png")
+      ).arrayBuffer();
+    }
+    if (active.id === "qr-code-studio" && qrLogoFile) {
+      o.logoBytes = await qrLogoFile.arrayBuffer();
+      o.logoMime = qrLogoFile.type || "image/png";
+    }
     cleanResults();
     controller = new AbortController();
     current = controller;
@@ -1153,8 +1774,12 @@ async function execute(e) {
       },
     };
     let out;
-    if (
-      ["text", "dev"].includes(active.category) ||
+    if (active.model) {
+      const engine = await import("./engines/ai.js");
+      out = await engine.run(active.id, files, o, ctx);
+    } else if (
+      active.category === "text" ||
+      (active.category === "dev" && active.id !== "qr-scanner") ||
       (active.category === "data" &&
         ![
           "xml-to-json",
@@ -1177,6 +1802,8 @@ async function execute(e) {
           "protect-pdf",
           "unlock-pdf",
           "crop-pdf",
+          "nup-pdf",
+          "pdf-metadata",
         ].includes(active.id)) ||
       (active.category === "image" &&
         !["svg-to-png", "heic-to-jpg"].includes(active.id) &&
@@ -1192,7 +1819,9 @@ async function execute(e) {
             ? import("./engines/media.js")
             : active.category === "data"
               ? import("./engines/data.js")
-              : import("./engines/ai.js"));
+              : active.category === "dev"
+                ? import("./engines/dev.js")
+                : import("./engines/ai.js"));
       out = await engine.run(active.id, files, o, ctx);
     }
     if (current.signal.aborted)
@@ -1292,6 +1921,8 @@ async function renderResults(all = results) {
         details.open = [
           "remove-bg",
           "ai-remove-bg",
+          "blur-bg",
+          "remove-object",
           "compress-image",
           "ai-upscale",
         ].includes(active?.id);
@@ -1323,14 +1954,24 @@ async function renderResults(all = results) {
         compare.append(before, after);
         details.append(summary, compare, slider);
         article.append(details);
-        if (active?.id === "remove-bg" || active?.id === "ai-remove-bg") {
+        if (
+          active?.id === "remove-bg" ||
+          active?.id === "ai-remove-bg" ||
+          active?.id === "blur-bg"
+        ) {
+          const isBlurBg = active?.id === "blur-bg";
           const refine = document.createElement("details");
           refine.className = "refine-brush";
           const rSum = document.createElement("summary");
-          rSum.textContent = L(
-            "Refinar recorte manualmente (pincel Apagar / Restaurar)",
-            "Manually refine cutout (Erase / Restore brush)",
-          );
+          rSum.textContent = isBlurBg
+            ? L(
+                "Refinar desfoque manualmente (pincel Desfocar / Manter nítido)",
+                "Manually refine bokeh (Blur / Keep sharp brush)",
+              )
+            : L(
+                "Refinar recorte manualmente (pincel Apagar / Restaurar)",
+                "Manually refine cutout (Erase / Restore brush)",
+              );
           const rBody = document.createElement("div");
           rBody.className = "refine-body";
           refine.append(rSum, rBody);
@@ -1348,6 +1989,21 @@ async function renderResults(all = results) {
             const origCv = canvas(rw, rh);
             origCv.getContext("2d").drawImage(origBmp, 0, 0, rw, rh);
             origBmp.close?.();
+            let blurCv = null;
+            if (isBlurBg) {
+              blurCv = canvas(rw, rh);
+              const bgCtx = blurCv.getContext("2d");
+              const radPx = Math.max(3, Number($("#option-radius")?.value || 18));
+              bgCtx.filter = `blur(${radPx}px)`;
+              bgCtx.drawImage(
+                origCv,
+                -radPx,
+                -radPx,
+                rw + radPx * 2,
+                rh + radPx * 2,
+              );
+              bgCtx.filter = "none";
+            }
             const editCv = canvas(rw, rh);
             editCv.className = "refine-canvas";
             const eg = editCv.getContext("2d");
@@ -1361,11 +2017,15 @@ async function renderResults(all = results) {
             const eraseBtn = document.createElement("button");
             eraseBtn.type = "button";
             eraseBtn.className = "secondary is-active";
-            eraseBtn.textContent = L("Apagar fundo", "Erase");
+            eraseBtn.textContent = isBlurBg
+              ? L("Desfocar área", "Blur area")
+              : L("Apagar fundo", "Erase");
             const restoreBtn = document.createElement("button");
             restoreBtn.type = "button";
             restoreBtn.className = "secondary";
-            restoreBtn.textContent = L("Restaurar original", "Restore");
+            restoreBtn.textContent = isBlurBg
+              ? L("Manter nítido", "Keep sharp")
+              : L("Restaurar original", "Restore");
             eraseBtn.onclick = () => {
               mode = "erase";
               eraseBtn.classList.add("is-active");
@@ -1396,14 +2056,28 @@ async function renderResults(all = results) {
               const rad = bSize / 2;
               eg.save();
               if (mode === "erase") {
-                eg.globalCompositeOperation = "destination-out";
-                const grad = eg.createRadialGradient(x, y, rad * 0.35, x, y, rad);
-                grad.addColorStop(0, "rgba(0,0,0,1)");
-                grad.addColorStop(1, "rgba(0,0,0,0)");
-                eg.fillStyle = grad;
-                eg.beginPath();
-                eg.arc(x, y, rad, 0, Math.PI * 2);
-                eg.fill();
+                if (isBlurBg && blurCv) {
+                  eg.beginPath();
+                  eg.arc(x, y, rad, 0, Math.PI * 2);
+                  eg.clip();
+                  eg.drawImage(blurCv, 0, 0);
+                } else {
+                  eg.globalCompositeOperation = "destination-out";
+                  const grad = eg.createRadialGradient(
+                    x,
+                    y,
+                    rad * 0.35,
+                    x,
+                    y,
+                    rad,
+                  );
+                  grad.addColorStop(0, "rgba(0,0,0,1)");
+                  grad.addColorStop(1, "rgba(0,0,0,0)");
+                  eg.fillStyle = grad;
+                  eg.beginPath();
+                  eg.arc(x, y, rad, 0, Math.PI * 2);
+                  eg.fill();
+                }
               } else {
                 eg.beginPath();
                 eg.arc(x, y, rad, 0, Math.PI * 2);
@@ -1473,6 +2147,7 @@ async function renderResults(all = results) {
     const chains = tools.filter(
       (tool) =>
         tool.input === "files" &&
+        !tool.external &&
         tool.id !== active.id &&
         tool.accept
           .split(",")
@@ -1509,6 +2184,81 @@ async function renderResults(all = results) {
     }
     target.append(article);
   }
+  const diffObj = all.find((r) => Array.isArray(r.diffRows));
+  if (diffObj) {
+    const rows = diffObj.diffRows;
+    const added = rows.filter((r) => r.type === "add" || r.type === "change").length;
+    const deleted = rows.filter((r) => r.type === "del" || r.type === "change").length;
+    const same = rows.filter((r) => r.type === "same").length;
+    const viewer = document.createElement("div");
+    viewer.className = "diff-viewer";
+    const stats = `<div class="diff-stats"><span class="diff-stat-add">+${added} ${L("adições", "added")}</span><span class="diff-stat-del">−${deleted} ${L("remoções", "removed")}</span><span>=${same} ${L("iguais", "unchanged")}</span></div>`;
+    if (diffObj.viewMode === "unified") {
+      viewer.innerHTML =
+        stats +
+        `<div class="diff-scroll"><table class="diff-table unified"><tbody>${rows
+          .flatMap((r) => {
+            if (r.type === "change") {
+              return [
+                `<tr class="diff-del"><td class="diff-ln">${r.leftNum ?? ""}</td><td class="diff-sym">−</td><td><code>${esc(r.leftText ?? "")}</code></td></tr>`,
+                `<tr class="diff-add"><td class="diff-ln">${r.rightNum ?? ""}</td><td class="diff-sym">+</td><td><code>${esc(r.rightText ?? "")}</code></td></tr>`,
+              ];
+            }
+            const cls =
+              r.type === "add"
+                ? "diff-add"
+                : r.type === "del"
+                  ? "diff-del"
+                  : "diff-same";
+            const sym = r.type === "add" ? "+" : r.type === "del" ? "−" : " ";
+            const ln = r.type === "add" ? r.rightNum : r.leftNum;
+            const txt = r.type === "add" ? r.rightText : r.leftText;
+            return [
+              `<tr class="${cls}"><td class="diff-ln">${ln ?? ""}</td><td class="diff-sym">${sym}</td><td><code>${esc(txt ?? "")}</code></td></tr>`,
+            ];
+          })
+          .join("")}</tbody></table></div>`;
+    } else {
+      viewer.innerHTML =
+        stats +
+        `<div class="diff-scroll"><table class="diff-table split"><tbody>${rows
+          .map((r) => {
+            const lCls =
+              r.type === "del" || r.type === "change" ? "diff-del" : "diff-same";
+            const rCls =
+              r.type === "add" || r.type === "change" ? "diff-add" : "diff-same";
+            return `<tr><td class="diff-ln ${lCls}">${r.leftNum ?? ""}</td><td class="${lCls}"><code>${esc(r.leftText ?? "")}</code></td><td class="diff-ln ${rCls}">${r.rightNum ?? ""}</td><td class="${rCls}"><code>${esc(r.rightText ?? "")}</code></td></tr>`;
+          })
+          .join("")}</tbody></table></div>`;
+    }
+    target.prepend(viewer);
+  }
+  const rxObj = all.find((r) => r.regexPreview);
+  if (rxObj) {
+    const { text: srcTxt, spans, replaced, count } = rxObj.regexPreview;
+    let cursor = 0,
+      htmlParts = "";
+    spans.forEach(([sIdx, eIdx], k) => {
+      if (sIdx > cursor) htmlParts += esc(srcTxt.slice(cursor, sIdx));
+      htmlParts += `<mark class="${k % 2 ? "rx-alt" : ""}">${esc(srcTxt.slice(sIdx, eIdx))}</mark>`;
+      cursor = eIdx;
+    });
+    if (cursor < srcTxt.length) htmlParts += esc(srcTxt.slice(cursor));
+    const box = document.createElement("div");
+    box.className = "regex-viewer";
+    box.innerHTML = `<div class="diff-stats"><span class="diff-stat-add">${count} ${L("ocorrência(s) destacada(s)", "match(es) highlighted")}</span></div><pre class="regex-highlight">${htmlParts || esc(srcTxt)}</pre>`;
+    if (replaced !== null && replaced !== undefined) {
+      const repHead = document.createElement("div");
+      repHead.className = "diff-stats";
+      repHead.style.marginTop = "12px";
+      repHead.innerHTML = `<strong>${L("Resultado da substituição", "Replacement preview")}</strong>`;
+      const repPre = document.createElement("pre");
+      repPre.className = "regex-highlight";
+      repPre.textContent = replaced;
+      box.append(repHead, repPre);
+    }
+    target.prepend(box);
+  }
   const md = all.find((r) => r.markdown !== undefined);
   if (md) {
     const { marked } = await import("marked"),
@@ -1530,7 +2280,19 @@ async function toggleRecord() {
     recorder.stop();
     return;
   }
-  if (!navigator.mediaDevices?.getDisplayMedia) {
+  const isVoice = active?.id === "voice-recorder";
+  if (isVoice) {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      status(
+        L(
+          "Este navegador não oferece captura de microfone.",
+          "This browser does not offer microphone capture.",
+        ),
+        "error",
+      );
+      return;
+    }
+  } else if (!navigator.mediaDevices?.getDisplayMedia) {
     status(
       L(
         "Este navegador não oferece captura de tela.",
@@ -1542,16 +2304,26 @@ async function toggleRecord() {
   }
   try {
     cleanResults();
-    recordStream = await navigator.mediaDevices.getDisplayMedia({
-      video: true,
-      audio: true,
-    });
-    const mime = [
-      "video/webm;codecs=vp9,opus",
-      "video/webm;codecs=vp8,opus",
-      "video/webm",
-      "video/mp4",
-    ].find((m) => MediaRecorder.isTypeSupported(m));
+    recordStream = isVoice
+      ? await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      : await navigator.mediaDevices.getDisplayMedia({
+          video: true,
+          audio: true,
+        });
+    const candidates = isVoice
+      ? [
+          "audio/webm;codecs=opus",
+          "audio/webm",
+          "audio/ogg;codecs=opus",
+          "audio/mp4",
+        ]
+      : [
+          "video/webm;codecs=vp9,opus",
+          "video/webm;codecs=vp8,opus",
+          "video/webm",
+          "video/mp4",
+        ];
+    const mime = candidates.find((m) => MediaRecorder.isTypeSupported(m));
     if (!mime)
       throw new Error(
         L(
@@ -1559,6 +2331,39 @@ async function toggleRecord() {
           "No compatible recording format.",
         ),
       );
+    if (isVoice && $("#recordWave")) {
+      const waveCv = $("#recordWave");
+      waveCv.hidden = false;
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        waveAudioCtx = new AudioCtx();
+        const srcNode = waveAudioCtx.createMediaStreamSource(recordStream);
+        const analyser = waveAudioCtx.createAnalyser();
+        analyser.fftSize = 128;
+        srcNode.connect(analyser);
+        const bins = new Uint8Array(analyser.frequencyBinCount);
+        const wg = waveCv.getContext("2d");
+        const drawWave = () => {
+          if (!waveAudioCtx) return;
+          analyser.getByteFrequencyData(bins);
+          wg.clearRect(0, 0, waveCv.width, waveCv.height);
+          const barW = waveCv.width / bins.length;
+          for (let i = 0; i < bins.length; i++) {
+            const h = Math.max(3, (bins[i] / 255) * (waveCv.height - 8));
+            wg.fillStyle = i % 2 ? "#64e5d6" : "#bc8eff";
+            wg.fillRect(
+              i * barW + 1,
+              (waveCv.height - h) / 2,
+              Math.max(2, barW - 2),
+              h,
+            );
+          }
+          waveRaf = requestAnimationFrame(drawWave);
+        };
+        drawWave();
+      }
+    }
+    const targetToolId = active.id;
     recorder = new MediaRecorder(recordStream, { mimeType: mime });
     recordChunks = [];
     recorder.ondataavailable = (e) => {
@@ -1566,22 +2371,38 @@ async function toggleRecord() {
     };
     recorder.onstop = async () => {
       clearInterval(elapsedTimer);
-      recordStream.getTracks().forEach((t) => t.stop());
+      cancelAnimationFrame(waveRaf);
+      waveRaf = null;
+      waveAudioCtx?.close?.().catch(() => {});
+      waveAudioCtx = null;
+      if ($("#recordWave")) $("#recordWave").hidden = true;
+      recordStream?.getTracks().forEach((t) => t.stop());
       if (!recordChunks.length) return;
       const blob = new Blob(recordChunks, { type: mime.split(";")[0] });
       recordChunks = [];
-      if (!active || active.id !== "screen-recorder" || !dialog.open) return;
+      if (!active || active.id !== targetToolId || !dialog.open) return;
+      const ext = isVoice
+        ? mime.includes("mp4")
+          ? "m4a"
+          : mime.includes("ogg")
+            ? "ogg"
+            : "webm"
+        : mime.includes("mp4")
+          ? "mp4"
+          : "webm";
       results = [
         {
           blob,
-          name: `tinylab-gravacao.${mime.includes("mp4") ? "mp4" : "webm"}`,
+          name: isVoice
+            ? `tinylab-voz.${ext}`
+            : `tinylab-gravacao.${ext}`,
         },
       ];
       await renderResults();
       $("#recordToggle").textContent = L("Nova gravação", "New recording");
       status(t("done"), "success");
     };
-    recordStream.getVideoTracks()[0].onended = () => {
+    recordStream.getTracks()[0].onended = () => {
       if (recorder?.state === "recording") recorder.stop();
     };
     recorder.start(1000);
@@ -1604,6 +2425,11 @@ async function toggleRecord() {
 }
 function stopRecorder(discard = false) {
   clearInterval(elapsedTimer);
+  cancelAnimationFrame(waveRaf);
+  waveRaf = null;
+  waveAudioCtx?.close?.().catch(() => {});
+  waveAudioCtx = null;
+  if ($("#recordWave")) $("#recordWave").hidden = true;
   if (discard) recordChunks = [];
   if (recorder && recorder.state !== "inactive") {
     if (discard) recorder.onstop = null;
@@ -1618,6 +2444,7 @@ function closeWorkspace() {
   controller = null;
   cleanInputUrls();
   stopRecorder(true);
+  stopScanner();
   previewGeneration++;
   cleanResults();
   active = null;
@@ -1625,6 +2452,9 @@ function closeWorkspace() {
   overlay = null;
   pageOverlays = new Map();
   sigStamps = new Map();
+  redactMap = new Map();
+  inpaintMaskCanvas = null;
+  qrLogoFile = null;
   uploadedSigImg?.close?.();
   uploadedSigImg = null;
   stampRedraw = null;
@@ -1688,6 +2518,61 @@ window.addEventListener("keydown", (e) => {
     e.preventDefault();
     $("#search").focus();
   }
+});
+window.addEventListener("paste", (e) => {
+  const cd = e.clipboardData;
+  if (!cd) return;
+  const tag = document.activeElement?.tagName || "";
+  const inEditable =
+    /^(INPUT|TEXTAREA)$/.test(tag) || document.activeElement?.isContentEditable;
+  if (inEditable && cd.getData("text/plain")) return;
+  let pasted = [...(cd.files || [])];
+  if (!pasted.length && cd.items) {
+    for (const item of cd.items) {
+      if (item.kind === "file") {
+        const f = item.getAsFile();
+        if (f) pasted.push(f);
+      }
+    }
+  }
+  if (!pasted.length) return;
+  e.preventDefault();
+  pasted = pasted.map((f, idx) => {
+    if (!f.name || /^image\.(png|jpe?g|webp)$/i.test(f.name)) {
+      const ext = (f.type.split("/")[1] || "png").replace("jpeg", "jpg");
+      return new File([f], `colado-${Date.now()}-${idx + 1}.${ext}`, {
+        type: f.type || "image/png",
+      });
+    }
+    return f;
+  });
+  if (dialog.open && active?.input === "files") {
+    addFiles(pasted);
+    toast(
+      L(
+        "Arquivo colado da área de transferência!",
+        "File pasted from clipboard!",
+      ),
+    );
+    return;
+  }
+  const first = pasted[0];
+  const defaultTool = first.type.startsWith("image/")
+    ? "remove-bg"
+    : first.type === "application/pdf" || /\.pdf$/i.test(first.name)
+      ? "compress-pdf"
+      : first.type.startsWith("video/")
+        ? "trim-video"
+        : first.type.startsWith("audio/")
+          ? "trim-audio"
+          : "file-hash";
+  openTool(defaultTool, { chainFiles: pasted, fromPaste: true });
+  toast(
+    L(
+      "Arquivo colado! Escolha outra ferramenta na barra acima ou processe direto.",
+      "File pasted! Switch tools in the bar above or process right away.",
+    ),
+  );
 });
 const officialLinks = [
   ["Portal 4U", "Portal 4U", "https://4u.ia.br/"],

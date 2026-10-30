@@ -681,13 +681,55 @@ async function wordHtmlToPdf(htmlString) {
       await drawDataImage(el.src);
       return;
     }
-    if (tag === "h1" || tag === "h2" || tag === "h3") {
+    if (tag === "h1" || tag === "h2" || tag === "h3" || tag === "h4" || tag === "h5" || tag === "h6") {
       y -= 4;
       drawParagraphText(el.textContent, {
-        size: tag === "h1" ? 18 : tag === "h2" ? 14 : 12,
+        size: tag === "h1" ? 18 : tag === "h2" ? 14 : tag === "h3" ? 12 : 11,
         color: rgb(0.14, 0.08, 0.28),
         gapAfter: 8,
       });
+      return;
+    }
+    if (tag === "hr") {
+      ensure(14);
+      page.drawLine({
+        start: { x: M, y: y - 4 },
+        end: { x: W - M, y: y - 4 },
+        thickness: 0.7,
+        color: rgb(0.78, 0.77, 0.84),
+      });
+      y -= 12;
+      return;
+    }
+    if (tag === "pre") {
+      const mono = await doc.embedFont(StandardFonts.Courier);
+      const monoAllowed = new Set(mono.getCharacterSet());
+      const rawLines = sanitizeForFont(el.textContent || "", monoAllowed).split("\n");
+      const wrappedCode = rawLines.flatMap((ln) =>
+        wrapText(ln, mono, 8.8, MAXW - 18),
+      );
+      const boxH = Math.max(20, wrappedCode.length * 12 + 12);
+      ensure(boxH + 8);
+      page.drawRectangle({
+        x: M,
+        y: y - boxH,
+        width: MAXW,
+        height: boxH,
+        color: rgb(0.95, 0.95, 0.97),
+        borderColor: rgb(0.84, 0.83, 0.89),
+        borderWidth: 0.5,
+      });
+      wrappedCode.forEach((ln, idx) => {
+        if (ln)
+          page.drawText(ln, {
+            x: M + 9,
+            y: y - 14 - idx * 12,
+            size: 8.8,
+            font: mono,
+            color: rgb(0.16, 0.14, 0.22),
+          });
+      });
+      y -= boxH + 8;
       return;
     }
     if (tag === "ul" || tag === "ol") {
@@ -774,6 +816,199 @@ async function wordHtmlToPdf(htmlString) {
   return doc;
 }
 
+export async function readPdfMetadata(file) {
+  const doc = await PDFDocument.load(await file.arrayBuffer(), {
+    updateMetadata: false,
+  });
+  return {
+    title: doc.getTitle() || "",
+    author: doc.getAuthor() || "",
+    subject: doc.getSubject() || "",
+    keywords: doc.getKeywords() || "",
+    creator: doc.getCreator() || "",
+    producer: doc.getProducer() || "",
+    pages: doc.getPageCount(),
+  };
+}
+
+export async function findTermRedactionBoxes(file, rawTerms) {
+  const terms = String(rawTerms || "")
+    .split(/[,\n]+/)
+    .map((t) => t.trim().toLowerCase())
+    .filter(Boolean);
+  if (!terms.length) return new Map();
+  const doc = await loadView(file);
+  const byPage = new Map();
+  try {
+    for (let i = 0; i < doc.numPages; i++) {
+      const page = await doc.getPage(i + 1);
+      const vp = page.getViewport({ scale: 1 });
+      const content = await page.getTextContent();
+      const boxes = [];
+      for (const item of content.items) {
+        const str = String(item.str || "");
+        if (!str.trim()) continue;
+        const lower = str.toLowerCase();
+        if (terms.some((term) => lower.includes(term))) {
+          const tx = item.transform?.[4] ?? 0;
+          const ty = item.transform?.[5] ?? 0;
+          const fs = Math.max(8, Math.hypot(item.transform?.[0] || 11, item.transform?.[1] || 0));
+          const iw = Math.max(fs * 0.6, Number(item.width) || str.length * fs * 0.55);
+          const ih = Math.max(fs * 1.25, Number(item.height) || fs * 1.2);
+          const pad = 2;
+          const x = Math.max(0, (tx - pad) / vp.width);
+          const topY = Math.max(0, (vp.height - ty - ih * 0.88 - pad) / vp.height);
+          const w = Math.min(1 - x, (iw + pad * 2) / vp.width);
+          const h = Math.min(1 - topY, (ih + pad * 2) / vp.height);
+          boxes.push({ x, y: topY, w, h });
+        }
+      }
+      if (boxes.length) byPage.set(i, boxes);
+    }
+  } finally {
+    await doc.destroy();
+  }
+  return byPage;
+}
+
+async function pdfToExcel(file, name, o, ctx) {
+  const XLSX = await import("xlsx");
+  const doc = await loadView(file);
+  try {
+    const indices = pageIndices(o.pages, doc.numPages);
+    const wb = XLSX.utils.book_new();
+    let totalCells = 0;
+    for (let k = 0; k < indices.length; k++) {
+      check(ctx);
+      const pIdx = indices[k];
+      const page = await doc.getPage(pIdx + 1);
+      const content = await page.getTextContent();
+      const rawItems = content.items
+        .filter((it) => String(it.str || "").trim())
+        .map((it) => {
+          const fs = Math.max(
+            6,
+            Math.hypot(it.transform?.[0] || 10, it.transform?.[1] || 0),
+          );
+          return {
+            str: String(it.str).trim(),
+            x: it.transform?.[4] ?? 0,
+            y: it.transform?.[5] ?? 0,
+            w: Math.max(fs * 0.5, Number(it.width) || it.str.length * fs * 0.5),
+            fs,
+          };
+        });
+      if (!rawItems.length) {
+        XLSX.utils.book_append_sheet(
+          wb,
+          XLSX.utils.aoa_to_sheet([[""]]),
+          `Pag_${pIdx + 1}`,
+        );
+        continue;
+      }
+      const sizes = rawItems.map((r) => r.fs).sort((a, b) => a - b);
+      const medFs = sizes[Math.floor(sizes.length / 2)] || 10;
+      rawItems.sort((a, b) => (Math.abs(b.y - a.y) > medFs * 0.48 ? b.y - a.y : a.x - b.x));
+      const lineGroups = [];
+      for (const it of rawItems) {
+        const last = lineGroups.at(-1);
+        if (last && Math.abs(last.y - it.y) <= medFs * 0.48) {
+          last.items.push(it);
+        } else {
+          lineGroups.push({ y: it.y, items: [it] });
+        }
+      }
+      const segmentedRows = lineGroups.map((lg) => {
+        lg.items.sort((a, b) => a.x - b.x);
+        const cells = [];
+        for (const it of lg.items) {
+          const prev = cells.at(-1);
+          if (prev && it.x - prev.endX <= medFs * 1.15) {
+            prev.text += " " + it.str;
+            prev.endX = Math.max(prev.endX, it.x + it.w);
+          } else {
+            cells.push({ x: it.x, endX: it.x + it.w, text: it.str });
+          }
+        }
+        return cells;
+      });
+      const anchors = [];
+      for (const row of segmentedRows) {
+        if (row.length < 2) continue;
+        for (const cell of row) {
+          const hit = anchors.find((a) => Math.abs(a.x - cell.x) <= medFs * 2.2);
+          if (hit) {
+            hit.x = (hit.x * hit.n + cell.x) / (hit.n + 1);
+            hit.n++;
+          } else {
+            anchors.push({ x: cell.x, n: 1 });
+          }
+        }
+      }
+      anchors.sort((a, b) => a.x - b.x);
+      const aoa = segmentedRows.map((row) => {
+        if (!anchors.length) return row.map((c) => c.text);
+        const cols = Array(anchors.length).fill("");
+        for (const cell of row) {
+          let bestIdx = 0,
+            bestDist = Infinity;
+          anchors.forEach((a, idx) => {
+            const d = Math.abs(a.x - cell.x);
+            if (d < bestDist) {
+              bestDist = d;
+              bestIdx = idx;
+            }
+          });
+          cols[bestIdx] = cols[bestIdx]
+            ? `${cols[bestIdx]} ${cell.text}`
+            : cell.text;
+          totalCells++;
+        }
+        return cols;
+      });
+      if (!anchors.length) totalCells += aoa.reduce((s, r) => s + r.length, 0);
+      XLSX.utils.book_append_sheet(
+        wb,
+        XLSX.utils.aoa_to_sheet(aoa),
+        `Pag_${pIdx + 1}`,
+      );
+      progress(ctx, ((k + 1) / indices.length) * 90);
+      await tick();
+    }
+    if (!totalCells)
+      throw new Error(
+        "Nenhum texto selecionável encontrado. Use OCR de PDF primeiro / No selectable text found. Run PDF OCR first.",
+      );
+    const outs = [];
+    const fmt = o.format || "xlsx";
+    if (fmt === "xlsx" || fmt === "both") {
+      outs.push(
+        output(
+          new Blob([XLSX.write(wb, { type: "array", bookType: "xlsx" })], {
+            type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          }),
+          `${name}.xlsx`,
+        ),
+      );
+    }
+    if (fmt === "csv" || fmt === "both") {
+      const csvParts = wb.SheetNames.map((sn) =>
+        XLSX.utils.sheet_to_csv(wb.Sheets[sn]),
+      ).join("\n\n");
+      outs.push(
+        textOutput(
+          "\uFEFF" + csvParts,
+          `${name}.csv`,
+          "text/csv;charset=utf-8",
+        ),
+      );
+    }
+    return outs;
+  } finally {
+    await doc.destroy();
+  }
+}
+
 export async function run(id, files, o, ctx = {}) {
   const name = baseName(files[0]?.name || "tinylab");
   const originalSize = files[0]?.size;
@@ -791,6 +1026,32 @@ export async function run(id, files, o, ctx = {}) {
 
   if (id === "text-to-pdf")
     return [output(await textPDF(o.content), "tinylab.pdf")];
+
+  if (id === "markdown-to-pdf") {
+    const raw = String(o.content || "").trim();
+    if (!raw) throw new Error("Conteúdo vazio / Empty content.");
+    const { marked } = await import("marked");
+    let html = await marked.parse(raw);
+    if (typeof window !== "undefined") {
+      const { default: DOMPurify } = await import("dompurify");
+      html = DOMPurify.sanitize(html, {
+        FORBID_TAGS: ["script", "iframe", "style", "form", "input", "object"],
+      });
+    }
+    const doc = await wordHtmlToPdf(html);
+    return [
+      output(
+        new Blob([await doc.save({ useObjectStreams: true })], {
+          type: "application/pdf",
+        }),
+        "tinylab-markdown.pdf",
+      ),
+    ];
+  }
+
+  if (id === "pdf-to-excel") {
+    return pdfToExcel(files[0], name, o, ctx);
+  }
 
   if (id === "pdf-to-text") {
     const pages = await extractText(files[0], ctx);
@@ -1198,6 +1459,207 @@ export async function run(id, files, o, ctx = {}) {
     }
   } else if (id === "compress-pdf") {
     await recompressPdfImages(doc, o, ctx);
+  } else if (id === "flatten-pdf") {
+    if (o.mode === "full") {
+      const view = await loadView(files[0]);
+      try {
+        const target = await PDFDocument.create();
+        const sc = Math.max(1, Math.min(3, Number(o.scale || 2)));
+        for (let i = 0; i < view.numPages; i++) {
+          check(ctx);
+          const vp = (await view.getPage(i + 1)).getViewport({ scale: 1 });
+          const c = await renderPage(view, i, sc);
+          const jpg = await toBlob(c, "image/jpeg", 0.9);
+          const img = await target.embedJpg(await jpg.arrayBuffer());
+          const p = target.addPage([vp.width, vp.height]);
+          p.drawImage(img, { x: 0, y: 0, width: vp.width, height: vp.height });
+          progress(ctx, ((i + 1) / view.numPages) * 95);
+          await tick();
+        }
+        return pdfResult(target);
+      } finally {
+        await view.destroy();
+      }
+    } else {
+      const form = doc.getForm();
+      if (form.getFields().length) {
+        try {
+          form.updateFieldAppearances(await embedFont(doc));
+        } catch {}
+        form.flatten();
+      }
+    }
+  } else if (id === "redact-pdf") {
+    const boxesByPage = new Map();
+    if (Array.isArray(o.redactBoxes)) {
+      for (const entry of o.redactBoxes) {
+        if (Array.isArray(entry.boxes) && entry.boxes.length) {
+          boxesByPage.set(entry.page, [...entry.boxes]);
+        }
+      }
+    }
+    if (String(o.terms || "").trim()) {
+      const autoMap = await findTermRedactionBoxes(files[0], o.terms);
+      for (const [pIdx, list] of autoMap.entries()) {
+        boxesByPage.set(pIdx, [...(boxesByPage.get(pIdx) || []), ...list]);
+      }
+    }
+    if (!boxesByPage.size)
+      throw new Error(
+        "Desenhe ao menos uma tarja na prévia ou informe termos para ocultar / Draw a redaction box or enter terms to redact.",
+      );
+    const fillHex = o.redactColor === "#ffffff" ? "#ffffff" : "#000000";
+    const target = await PDFDocument.create();
+    target.setTitle("");
+    target.setAuthor("");
+    target.setSubject("");
+    target.setKeywords([]);
+    target.setCreator("");
+    target.setProducer("");
+    const view = ctx.rasterizeRedactedPage ? null : await loadView(files[0]);
+    try {
+      for (let i = 0; i < count; i++) {
+        check(ctx);
+        const pageBoxes = boxesByPage.get(i);
+        if (!pageBoxes?.length) {
+          const [copied] = await target.copyPages(doc, [i]);
+          target.addPage(copied);
+        } else if (ctx.rasterizeRedactedPage) {
+          const { width, height } = pages[i].getSize();
+          const pngBytes = await ctx.rasterizeRedactedPage(i, pageBoxes, fillHex);
+          const embedded = await target.embedPng(pngBytes);
+          const p = target.addPage([width, height]);
+          p.drawImage(embedded, { x: 0, y: 0, width, height });
+        } else {
+          const vp = (await view.getPage(i + 1)).getViewport({ scale: 1 });
+          const c = await renderPage(view, i, 2);
+          const g = c.getContext("2d");
+          g.fillStyle = fillHex;
+          for (const b of pageBoxes) {
+            g.fillRect(
+              b.x * c.width,
+              b.y * c.height,
+              b.w * c.width,
+              b.h * c.height,
+            );
+          }
+          const blob = await toBlob(c, "image/png");
+          const embedded = await target.embedPng(await blob.arrayBuffer());
+          const p = target.addPage([vp.width, vp.height]);
+          p.drawImage(embedded, { x: 0, y: 0, width: vp.width, height: vp.height });
+        }
+        progress(ctx, ((i + 1) / count) * 95);
+        await tick();
+      }
+    } finally {
+      await view?.destroy();
+    }
+    return [
+      {
+        ...output(
+          new Blob([await target.save({ useObjectStreams: true, updateMetadata: false })], {
+            type: "application/pdf",
+          }),
+          `${name}-redacted.pdf`,
+        ),
+        ...(originalSize ? { originalSize } : {}),
+      },
+    ];
+  } else if (id === "nup-pdf") {
+    const layout = Number(o.layout || 4);
+    const gridMap = {
+      2: [2, 1],
+      4: [2, 2],
+      6: [3, 2],
+      9: [3, 3],
+    };
+    const [cols, rows] = gridMap[layout] || [2, 2];
+    const isLandscape =
+      o.orientation === "landscape" ||
+      (o.orientation !== "portrait" && (layout === 2 || layout === 6));
+    const SW = isLandscape ? 841.89 : 595.28;
+    const SH = isLandscape ? 595.28 : 841.89;
+    const margin = 20,
+      gap = 12;
+    const cellW = (SW - margin * 2 - gap * (cols - 1)) / cols;
+    const cellH = (SH - margin * 2 - gap * (rows - 1)) / rows;
+    const target = await PDFDocument.create();
+    const embeddedPages = await target.embedPages(pages);
+    for (let i = 0; i < embeddedPages.length; i += layout) {
+      check(ctx);
+      const sheet = target.addPage([SW, SH]);
+      for (let j = 0; j < layout && i + j < embeddedPages.length; j++) {
+        const ep = embeddedPages[i + j];
+        const col = j % cols,
+          row = Math.floor(j / cols);
+        const cx = margin + col * (cellW + gap);
+        const cy = SH - margin - (row + 1) * cellH - row * gap;
+        const scale = Math.min(cellW / ep.width, cellH / ep.height);
+        const dw = ep.width * scale,
+          dh = ep.height * scale;
+        const dx = cx + (cellW - dw) / 2,
+          dy = cy + (cellH - dh) / 2;
+        sheet.drawPage(ep, { x: dx, y: dy, width: dw, height: dh });
+        if (o.border !== "no") {
+          sheet.drawRectangle({
+            x: dx,
+            y: dy,
+            width: dw,
+            height: dh,
+            borderColor: rgb(0.8, 0.8, 0.85),
+            borderWidth: 0.4,
+          });
+        }
+      }
+      progress(ctx, (Math.min(embeddedPages.length, i + layout) / embeddedPages.length) * 95);
+      await tick();
+    }
+    return pdfResult(target);
+  } else if (id === "pdf-metadata") {
+    if (o.mode === "clear") {
+      doc.setTitle("");
+      doc.setAuthor("");
+      doc.setSubject("");
+      doc.setKeywords([]);
+      doc.setCreator("");
+      doc.setProducer("");
+    } else {
+      doc.setTitle(String(o.title || ""));
+      doc.setAuthor(String(o.author || ""));
+      doc.setSubject(String(o.subject || ""));
+      const kw = String(o.keywords || "")
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      doc.setKeywords(kw);
+    }
+    const savedBytes = await doc.save({
+      useObjectStreams: true,
+      updateMetadata: false,
+    });
+    const summary = {
+      title: doc.getTitle() || "",
+      author: doc.getAuthor() || "",
+      subject: doc.getSubject() || "",
+      keywords: doc.getKeywords() || "",
+      creator: doc.getCreator() || "",
+      producer: doc.getProducer() || "",
+      pages: count,
+    };
+    return [
+      {
+        ...output(
+          new Blob([savedBytes], { type: "application/pdf" }),
+          `${name}-metadata.pdf`,
+        ),
+        ...(originalSize ? { originalSize } : {}),
+      },
+      textOutput(
+        JSON.stringify(summary, null, 2),
+        `${name}-metadata.json`,
+        "application/json",
+      ),
+    ];
   } else {
     throw new Error("Ferramenta desconhecida / Unknown tool.");
   }
