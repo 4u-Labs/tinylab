@@ -1,56 +1,89 @@
-# TinyLab 2
+# 🧪 TinyLab v2.0 — Suíte com 132 Ferramentas Web Livres, Rápidas & Privadas
 
-PT-BR | [English below](#english)
+<p align="center">
+  <img src="og-banner.jpg" alt="TinyLab — Pequenas ferramentas, grandes soluções" width="840" />
+</p>
 
-Laboratório local com 104 ferramentas em sete categorias: PDF, imagens, vídeo/áudio, arquivos/dados, texto, desenvolvimento/utilitários e IA local.
+<p align="center">
+  <strong>PT-BR</strong> · <a href="#-english">English below</a> ·
+  <a href="https://4u.ia.br/app/tinylab/">🌐 Acessar App Online</a> ·
+  <a href="https://4u.ia.br/loja/">🛍️ Loja 4u Hub</a> ·
+  <a href="https://4u-labs.github.io/">📝 Blog Dev</a>
+</p>
 
-## Executar
+---
 
-A pasta pública `/home/fabiano/public_html/app/tinylab` aponta para este projeto. Os arquivos estáticos já estão compilados.
+**TinyLab** é o laboratório de utilitários digitais tudo-em-um da **[4u-Labs](https://4u.ia.br/)**, projetado como alternativa moderna, aberta, rápida e **privada por padrão** a suítes cheias de anúncios, filas artificiais e limites diários. Reúne **132 ferramentas em 7 categorias**, bilíngue (**PT-BR / EN**), instalável como **PWA** com **Share Target** e **modo offline**.
 
-```sh
+## ✨ Destaques da Versão 2.0
+
+- **132 Ferramentas em 7 Categorias:** PDF (30), Imagens (27), Vídeo & Áudio (22), Dados & Planilhas (15), Texto (8), Dev & QR/Barras (15) e IA Local (15).
+- **Privacidade Local-First:** Operações no navegador rodam via **WebAssembly**, **WebGPU**, **Canvas** e **Web Workers** diretamente na memória do seu dispositivo — sem enviar seus arquivos para nuvens de terceiros.
+- **Colar Global (`Ctrl+V`) & Web Share Target:** Cole capturas de tela, fotos ou PDFs em qualquer lugar da página (ou compartilhe direto da galeria do celular para o PWA instalado) com barra rápida para alternar entre ferramentas em 1 clique.
+- **Encadeamento Inteligente:** Envie o arquivo gerado diretamente para a próxima ferramenta (*ex.: Remover Fundo → Comprimir Imagem*, *OCR PDF → Assinar PDF*) sem precisar baixar e reenviar.
+- **SEO Nativo & URLs Limpas:** 130 páginas estáticas individuais (`/app/tinylab/<ferramenta>/`) com metadados Open Graph, JSON-LD (`WebApplication` + `FAQPage`) e `sitemap.xml` gerados automaticamente no build.
+
+## 🧰 Catálogo por Categoria
+
+| Categoria | Qtd | Principais Ferramentas |
+| :--- | :---: | :--- |
+| 📄 **PDF** | 30 | Juntar, Dividir, Comprimir inteligente (recomprime imagens internas mantendo texto vetorial), PDF pesquisável (OCR), PDF ↔ Word/Excel, Assinar multipáginas vetorial, Anotar, Tarjar dados confidenciais (Redaction permanente), Achatar (Flatten), N-up (2/4/6/9 por folha), Markdown → PDF, Metadados e Criptografia AES-256 |
+| 🎨 **Imagens** | 27 | Remover fundo (Cor + IA ORMBG/MODNet + pincel Apagar/Restaurar), Desfocar fundo (Bokeh IA), Remover Objetos/Marcas-d'água (Inpainting), Vetorizar PNG/JPG → SVG em cores, Carrossel/Grade Instagram, Foto de Perfil (PFPMaker), Mockup de Print macOS & Memes, Converter/Comprimir AVIF, WebP, PNG, JPG e HEIC |
+| 🎬 **Vídeo & Áudio** | 22 | Cortar vídeo/áudio com timeline visual de duas alças, Queimar legendas `.srt` no vídeo, Juntar vídeos (Concat), Formato Vertical 9:16 (Reels/Shorts/TikTok), Velocidade 0.5×–3×, Extrair áudio/frames, GIF, Gravador de Tela e Gravador de Voz com ondas ao vivo + atalhos para **ClipCut** e **BAIXOU!!** |
+| 📊 **Dados & Arquivos** | 15 | CSV ↔ Excel (`.xlsx`) ↔ JSON ↔ XML ↔ YAML, Criar/Extrair ZIP, Hashes de arquivo (`SHA-256`/`SHA-512`), Comparar pastas/arquivos e Limpeza de planilhas |
+| ✍️ **Texto** | 8 | Contador de palavras/tempo de leitura, Limpar formatação, Maiúsculas/Minúsculas, Ordenar/Deduplicar linhas, Slug URL e **Diff Visual** colorido lado a lado ou unificado |
+| ⚙️ **Dev & Utilitários** | 15 | **QR Code Studio** (`PNG` + `SVG` vetorial + Logo central, PIX Copia e Cola, Wi-Fi, vCard, WhatsApp), **Leitor de QR/Barras** por imagem ou câmera ao vivo, Gerador de Código de Barras (`EAN-13`, `EAN-8`, `UPC-A`, `Code 128`), Decodificador JWT (com verificação HMAC), Testador de Regex em tempo real, UUID, Base64 e Gerador de Senhas |
+| 🤖 **IA Local** | 15 | Recorte IA (`ORMBG` / `MODNet`), Super-Resolução 2× (`Swin2SR`), Transcrição de Áudio/Vídeo (`Whisper`), OCR PT/EN (`Tesseract`), Resumo, Tradução, Revisão e suíte **AI Write** local (E-mail, Artigo/Post, Descrição de Produto, Roteiro YouTube/Reels e Gerador de FAQ/Flashcards com `Qwen2.5` via WebGPU/WASM) |
+
+## 🚀 Como Executar e Compilar Localmente
+
+Requisitos para build/manutenção: **Node.js 20+** (recomendado 22+) e Python 3 para o servidor local de prévia. A versão compilada é 100% estática (com endpoint opcional efêmero para LibreOffice).
+
+```bash
+# 1. Instalar dependências (sem baixar binários CUDA desnecessários)
+ONNXRUNTIME_NODE_INSTALL_CUDA=skip npm ci
+
+# 2. Gerar bundles, vendor/, sw.js, 130 páginas SEO e sitemap.xml
+npm run build
+
+# 3. Executar suíte de testes automatizados (Node + servidor local)
+npm test
+python3 -m unittest tests/server_test.py
+
+# 4. Iniciar servidor local em http://127.0.0.1:4173
 npm run dev
 ```
 
-Abra http://127.0.0.1:4173. Para recompilar:
+## 🔒 Arquitetura de Privacidade e Limites Transparentes
 
-```sh
+- **Zero Upload nas Operações do Navegador:** PDFs, imagens, vídeos, planilhas, QR Codes e textos são processados localmente na memória do navegador.
+- **Modelos de IA sob Demanda:** Na primeira execução de uma ferramenta de IA generativa, visão ou áudio, o modelo correspondente (`onnx-community/ormbg-ONNX`, `Xenova/modnet`, `Xenova/swin2SR-classical-sr-x2-64`, `Xenova/whisper-tiny` ou `onnx-community/Qwen2.5-0.5B/1.5B-Instruct`) é baixado diretamente para o cache do navegador e executado localmente via **WebGPU** (com fallback automático para **WASM**).
+- **Conversão Office Efêmera (Opcional):** A conversão de fidelidade total `Word/Excel/PowerPoint → PDF` via LibreOffice processa o arquivo em diretório temporário isolado e o remove imediatamente após devolver o PDF, sem retenção ou banco de arquivos.
+- **Modo Offline:** O botão **Preparar offline** armazena os pacotes WebAssembly e scripts principais no Cache Storage do navegador (gerenciado exclusivamente sob o prefixo `tinylab-v2-`).
+- **Avisos de Terceiros:** Consulte [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) para detalhes das bibliotecas open-source e licenças distribuídas em `vendor/licenses/`.
+
+---
+
+## 🌍 English
+
+**TinyLab v2.0** is an ad-free, local-first web utility suite by **[4u-Labs](https://4u.ia.br/)** featuring **132 tools across 7 categories** (PDF, Image, Video & Audio, Data & Spreadsheets, Text, Dev/QR/Barcodes, and Local AI), full **PT-BR / EN** internationalization, **PWA Web Share Target**, global clipboard paste (`Ctrl+V`), 1-click tool chaining, and offline support.
+
+### Key Highlights
+- **30 PDF Tools:** Merge, Split, Smart Compress (recompresses embedded images while keeping vector text), Searchable PDF OCR, PDF ↔ Word/Excel, Multi-page Vector Sign & Annotate, Permanent Redaction, Flatten, N-up imposition, Markdown → PDF, Metadata editor/wiper, and AES-256 encryption.
+- **27 Image Tools:** Background removal (Color flood-fill + local `ORMBG`/`MODNet` AI + interactive Erase/Restore brush), Portrait Bokeh Blur, Object/Watermark Inpainting, Color PNG/JPG → SVG Vectorizer, Instagram Carousel Splitter, PFPMaker, macOS Screenshot Mockup & Meme Generator, and AVIF/WebP/PNG/JPG/HEIC conversion.
+- **22 Video & Audio Tools:** Dual-handle visual trim timeline, Hardcoded `.srt` subtitle burner, Video Concat, 9:16 Vertical Reels/Shorts formatter, 0.5×–3× Speed control, Screen & Live Waveform Voice Recorders, plus direct integration with **ClipCut** and **BAIXOU!!**.
+- **Data, Text, Dev & Local AI (53 Tools):** CSV ↔ Excel ↔ JSON ↔ XML ↔ YAML, ZIP archiver, Side-by-side Diff Viewer, **QR Code Studio** (`PNG` + `SVG` + Center Logo, PIX, Wi-Fi, vCard), Live Camera QR/Barcode Scanner, `EAN-13`/`Code 128` SVG Generator, JWT Decoder (HMAC verification), Live Regex Tester, Whisper transcription, Swin2SR 2× upscaling, and local `Qwen2.5` AI Write tools with automatic WebGPU acceleration.
+
+### Build & Test
+```bash
 ONNXRUNTIME_NODE_INSTALL_CUDA=skip npm ci
 npm run build
 npm test
+python3 -m unittest tests/server_test.py
 ```
 
-Use Node.js 22.13 ou mais recente para manutenção. A versão compilada não requer Node no servidor. O build inclui os motores do navegador e os dados OCR em português/inglês. `scripts/build.mjs` usa fontes DejaVu do sistema e importa o conjunto OCR já instalado em `/home/fabiano/public_html/app/scanner/vendor`; consulte essas variáveis no script ao compilar em outra máquina.
+---
 
-## Privacidade e funcionamento
-
-- Operações comuns executam no navegador; não enviam arquivos para APIs.
-- O botão **Preparar offline** baixa e guarda as dependências locais. Downloads podem ocupar mais de 100 MB. O Service Worker gerencia apenas caches TinyLab e ignora APIs, POSTs e requisições de outras origens.
-- OCR tem modelos PT/EN incluídos. IA generativa, MODNet, Swin2SR e Whisper baixam modelos do Hugging Face na primeira execução. O conteúdo dos documentos não é enviado. A inferência ocorre no dispositivo; os modelos ficam no cache do navegador, sujeito à disponibilidade de armazenamento.
-- O serviço opcional **Office para PDF** usa o LibreOffice instalado neste computador. O servidor escuta somente em 127.0.0.1, aceita arquivos de até 100 MB, usa diretório temporário e remove os arquivos ao terminar. Esse modo não existe em hospedagem somente estática.
-- A conta Google, quando usada no domínio oficial, reutiliza `../keepai/api/auth.php`. Não há banco separado de usuários/créditos nem cobrança por inferência local.
-- Favoritos e recentes armazenam somente IDs de ferramentas. Documentos e senhas não são salvos no histórico.
-
-## Limites explícitos
-
-- Lotes: até 200 arquivos / 512 MB; imagens: até 64 megapixels na saída; mídia: FFmpeg local com cancelamento, até cinco minutos por execução.
-- PDF para DOCX usa texto selecionável e layout simplificado. DOCX para PDF no navegador usa texto e imagens ao final; o modo LibreOffice preserva melhor o layout.
-- Assinaturas são visuais, sem certificado digital. Anotação/assinatura rasterizam a página editada. Compressão rasterizada perde texto selecionável, links e formulários.
-- Remoção por cor funciona melhor em fundos uniformes. MODNet é destinado a retratos, sem garantia de recorte de objetos arbitrários.
-- Ampliação de imagens usa interpolação e não inventa detalhes com IA.
-- Transcrição local: até 30 minutos; geração de texto depende da capacidade do dispositivo e pode conter erros. Resumos aceitam até 24.000 caracteres; outras tarefas de texto, até 10.000.
-- Gravação de tela e áudio depende das permissões e dos codecs do navegador. Legendas de vídeo são uma faixa selecionável.
-
-## Estrutura
-
-`src/catalog.js` define catálogo e opções PT/EN. `src/main.js` controla a interface. `src/engines/` implementa operações, com workers para tarefas pesadas. `assets/` e `vendor/` são os arquivos compilados. `tests/core.test.mjs` verifica invariantes e resultados; `tests/browser.mjs` faz testes de integração com arquivos sintéticos.
-
-Software de terceiros e modelos: [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Os binários de terceiros são distribuídos sem modificações, com avisos de licença em `vendor/licenses/`.
-
-## English
-
-TinyLab is a browser-first laboratory with 104 tools across seven categories. Run `npm run dev` and open http://127.0.0.1:4173. Static builds run without Node on the server. Standard file operations do not upload documents. Optional local Office conversion uses LibreOffice through a loopback-only Python service, with temporary files and a 100 MB limit. AI models download on demand and inference runs locally. Use **Prepare offline** to cache browser dependencies; model caches are separate.
-
-PDF-to-Word and browser Word-to-PDF use simplified layouts. Drawn signatures are visual, without digital certificates; edited pages are rasterized. Color-based background removal is best for uniform backgrounds; MODNet targets portraits. The standard image enlargement tool uses interpolation; the AI upscaler uses Swin2SR in 2× tiles (up to 4 megapixels input). AI outputs require review. Screen recording and codecs depend on browser support.
-
-For maintenance use Node.js 22.13+, `ONNXRUNTIME_NODE_INSTALL_CUDA=skip npm ci`, `npm run build`, and `npm test`. See source and third-party notices for build assets and licenses. No separate account/credit database or paid inference API is introduced.
+<p align="center">
+  Feito com 💜 por <a href="https://4u.ia.br/">4u-Labs</a> · <a href="https://4u.ia.br/app/tinylab/">4u.ia.br/app/tinylab</a>
+</p>

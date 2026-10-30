@@ -626,22 +626,27 @@ h2 {
   margin: 7px 0 8px;
   letter-spacing: -0.25px;
 }
-.tool-card h3 button {
+.tool-card h3 button,
+.tool-card h3 a {
   background: none;
   border: 0;
+  color: inherit;
+  text-decoration: none;
   text-align: left;
   padding: 0;
   font-size: inherit;
   letter-spacing: inherit;
   font-weight: inherit;
 }
-.tool-card h3 button:after {
+.tool-card h3 button:after,
+.tool-card h3 a:after {
   content: "";
   position: absolute;
   inset: 65px 0 37px;
   z-index: 1;
 }
-.tool-card h3 button:focus-visible:after {
+.tool-card h3 button:focus-visible:after,
+.tool-card h3 a:focus-visible:after {
   outline: 2px solid var(--cyan);
   border-radius: 8px;
 }
@@ -676,6 +681,7 @@ h2 {
   border: 0;
   background: none;
   color: #ada1bc;
+  text-decoration: none;
   font-size: 17px;
   padding: 0 4px;
 }
@@ -2033,4 +2039,73 @@ fieldset {
 .regex-highlight mark.rx-alt {
   background: #64e5d638;
   border-bottom-color: var(--cyan);
+}
+.seo-tool-sheet {
+  max-width: 1180px;
+  margin: 0 auto 34px;
+  padding: 24px 28px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: linear-gradient(135deg, #bc8eff08, transparent 60%), var(--card);
+}
+.seo-tool-sheet h2 {
+  font-size: 19px;
+  margin: 4px 0 10px;
+  letter-spacing: -0.3px;
+}
+.seo-tool-sheet > p {
+  color: #ada5bd;
+  font-size: 13px;
+  line-height: 1.7;
+  margin: 0 0 16px;
+}
+.seo-faq {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.seo-faq details {
+  border: 1px solid #ffffff10;
+  border-radius: 10px;
+  padding: 10px 14px;
+  background: #100f18;
+}
+.seo-faq summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 560;
+  color: #ece6f7;
+}
+.seo-faq details p {
+  margin: 8px 0 2px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: #a69eb6;
+}
+.seo-related {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: #968ea5;
+}
+.seo-related a {
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: #ffffff06;
+  color: #dfd4f5;
+  text-decoration: none;
+  transition: border-color 0.15s, color 0.15s;
+}
+.seo-related a:hover {
+  border-color: var(--cyan);
+  color: var(--cyan);
+}
+@media (max-width: 960px) {
+  .seo-tool-sheet {
+    margin: 0 24px 32px;
+    padding: 18px 20px;
+  }
 }

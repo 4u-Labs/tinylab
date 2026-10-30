@@ -8,6 +8,9 @@ import {
   baseName,
 } from "./utils.js";
 const $ = (s) => document.querySelector(s);
+const APP_ROOT = new URL("../", import.meta.url);
+const toolHref = (tool) =>
+  tool.external || new URL(`${tool.id}/`, APP_ROOT).pathname;
 const esc = (s) =>
   String(s ?? "").replace(
     /[&<>"']/g,
@@ -198,12 +201,23 @@ function download(result) {
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 30000);
 }
+function updateDocTitle() {
+  document.title = active
+    ? L(
+        `${active.title.pt} Online Grátis — Sem Anúncios | TinyLab`,
+        `${active.title.en} Free Online — No Ads | TinyLab`,
+      )
+    : L(
+        "TinyLab — 132 Ferramentas Web Livres, Rápidas & Privadas",
+        "TinyLab — 132 Free, Fast & Private Web Tools",
+      );
+}
 function translate() {
   document.documentElement.lang = lang === "pt" ? "pt-BR" : "en";
-  document.title = L(
-    "TinyLab — Ferramentas privadas para o dia a dia",
-    "TinyLab — Private tools for everyday tasks",
-  );
+  updateDocTitle();
+  document
+    .querySelectorAll("a.brand")
+    .forEach((a) => (a.href = APP_ROOT.pathname));
   document
     .querySelectorAll("[data-t]")
     .forEach((el) => (el.textContent = t(el.dataset.t)));
@@ -246,7 +260,7 @@ function renderCatalog() {
     ? list
         .map(
           (tool) =>
-            `<article class="tool-card ${tool.category}"><div class="card-top"><span class="tool-icon">${icons[tool.category]}</span><button class="favorite ${favorites.includes(tool.id) ? "saved" : ""}" data-favorite="${tool.id}" aria-label="${L("Favoritar", "Favorite")} ${esc(tool.title[lang])}" aria-pressed="${favorites.includes(tool.id)}">${favorites.includes(tool.id) ? "★" : "☆"}</button></div><span class="card-category">${esc(categories.find((c) => c.id === tool.category).label[lang])}</span><h3><button data-tool="${tool.id}">${esc(tool.title[lang])}</button></h3><p>${esc(tool.description[lang])}</p><div class="card-bottom"><span class="local-badge">${tool.external ? L("App 4u-Labs ↗", "4u-Labs App ↗") : tool.companion ? L("Serviço efêmero", "Ephemeral service") : tool.model ? L("Modelo local", "Local model") : L("No navegador", "In browser")}</span><button class="card-open" data-tool="${tool.id}" aria-label="${t("open")} ${esc(tool.title[lang])}">↗</button></div></article>`,
+            `<article class="tool-card ${tool.category}"><div class="card-top"><span class="tool-icon">${icons[tool.category]}</span><button class="favorite ${favorites.includes(tool.id) ? "saved" : ""}" data-favorite="${tool.id}" aria-label="${L("Favoritar", "Favorite")} ${esc(tool.title[lang])}" aria-pressed="${favorites.includes(tool.id)}">${favorites.includes(tool.id) ? "★" : "☆"}</button></div><span class="card-category">${esc(categories.find((c) => c.id === tool.category).label[lang])}</span><h3><a href="${esc(toolHref(tool))}" data-tool="${tool.id}" ${tool.external ? 'target="_blank" rel="noopener noreferrer"' : ""}>${esc(tool.title[lang])}</a></h3><p>${esc(tool.description[lang])}</p><div class="card-bottom"><span class="local-badge">${tool.external ? L("App 4u-Labs ↗", "4u-Labs App ↗") : tool.companion ? L("Serviço efêmero", "Ephemeral service") : tool.model ? L("Modelo local", "Local model") : L("No navegador", "In browser")}</span><a class="card-open" href="${esc(toolHref(tool))}" data-tool="${tool.id}" ${tool.external ? 'target="_blank" rel="noopener noreferrer"' : ""} aria-label="${t("open")} ${esc(tool.title[lang])}">↗</a></div></article>`,
         )
         .join("")
     : `<p class="catalog-empty">${t("empty")}</p>`;
@@ -400,7 +414,10 @@ function openTool(id, { chainFiles = [], content = "", fromPaste = false } = {})
   stampRedraw = null;
   formFields = {};
   cleanResults();
-  if (location.hash !== `#${id}`) history.replaceState(null, "", `#${id}`);
+  const targetPath = new URL(`${id}/`, APP_ROOT).pathname;
+  if (location.pathname !== targetPath || location.hash)
+    history.replaceState(null, "", targetPath + location.search);
+  updateDocTitle();
   $("#workspaceIcon").textContent = icons[tool.category];
   $("#workspaceCategory").textContent = categories.find(
     (c) => c.id === tool.category,
@@ -2459,7 +2476,8 @@ function closeWorkspace() {
   uploadedSigImg = null;
   stampRedraw = null;
   dialog.close();
-  history.replaceState(null, "", location.pathname + location.search);
+  history.replaceState(null, "", APP_ROOT.pathname + location.search);
+  updateDocTitle();
   renderCatalog();
   lastFocus?.focus();
 }
@@ -2470,7 +2488,15 @@ dialog.addEventListener("cancel", (e) => {
 });
 document.addEventListener("click", (e) => {
   const open = e.target.closest("[data-tool]");
-  if (open) openTool(open.dataset.tool);
+  if (open) {
+    if (
+      open.tagName === "A" &&
+      (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0)
+    )
+      return;
+    e.preventDefault();
+    openTool(open.dataset.tool);
+  }
   const fav = e.target.closest("[data-favorite]");
   if (fav) {
     favorites = favorites.includes(fav.dataset.favorite)
@@ -2546,17 +2572,25 @@ window.addEventListener("paste", (e) => {
     }
     return f;
   });
+  openIncomingFiles(pasted, false);
+});
+function openIncomingFiles(incoming, isShare = false) {
   if (dialog.open && active?.input === "files") {
-    addFiles(pasted);
+    addFiles(incoming);
     toast(
-      L(
-        "Arquivo colado da área de transferência!",
-        "File pasted from clipboard!",
-      ),
+      isShare
+        ? L(
+            "Arquivo recebido via Compartilhar!",
+            "File received via Share!",
+          )
+        : L(
+            "Arquivo colado da área de transferência!",
+            "File pasted from clipboard!",
+          ),
     );
     return;
   }
-  const first = pasted[0];
+  const first = incoming[0];
   const defaultTool = first.type.startsWith("image/")
     ? "remove-bg"
     : first.type === "application/pdf" || /\.pdf$/i.test(first.name)
@@ -2566,14 +2600,19 @@ window.addEventListener("paste", (e) => {
         : first.type.startsWith("audio/")
           ? "trim-audio"
           : "file-hash";
-  openTool(defaultTool, { chainFiles: pasted, fromPaste: true });
+  openTool(defaultTool, { chainFiles: incoming, fromPaste: true });
   toast(
-    L(
-      "Arquivo colado! Escolha outra ferramenta na barra acima ou processe direto.",
-      "File pasted! Switch tools in the bar above or process right away.",
-    ),
+    isShare
+      ? L(
+          "Arquivo compartilhado! Escolha outra ferramenta acima ou processe direto.",
+          "Shared file loaded! Switch tools above or process right away.",
+        )
+      : L(
+          "Arquivo colado! Escolha outra ferramenta na barra acima ou processe direto.",
+          "File pasted! Switch tools in the bar above or process right away.",
+        ),
   );
-});
+}
 const officialLinks = [
   ["Portal 4U", "Portal 4U", "https://4u.ia.br/"],
   ["Loja de Apps", "App Store", "https://4u.ia.br/loja/index.php"],
@@ -2651,13 +2690,14 @@ $("#offlineButton").onclick = async () => {
           "This browser does not support offline caching.",
         ),
       );
-    const manifest = await fetch("./offline-assets.json", {
-      cache: "no-store",
-    }).then((r) => r.json());
+    const manifest = await fetch(
+      new URL("../offline-assets.json", import.meta.url),
+      { cache: "no-store" },
+    ).then((r) => r.json());
     const cache = await caches.open(manifest.cache);
     for (let i = 0; i < manifest.assets.length; i++) {
-      const asset = manifest.assets[i];
-      if (!(await cache.match(asset))) await cache.add(asset);
+      const assetUrl = new URL(manifest.assets[i], APP_ROOT).href;
+      if (!(await cache.match(assetUrl))) await cache.add(assetUrl);
       btn.textContent = `${L("Preparando", "Preparing")} ${i + 1}/${manifest.assets.length}`;
     }
     toast(
@@ -2684,7 +2724,9 @@ $("#accountButton").onclick = async () => {
 };
 if ("serviceWorker" in navigator)
   navigator.serviceWorker
-    .register("./sw.js")
+    .register(new URL("../sw.js", import.meta.url), {
+      scope: APP_ROOT.pathname,
+    })
     .catch(() =>
       toast(
         L(
@@ -2694,8 +2736,82 @@ if ("serviceWorker" in navigator)
       ),
     );
 translate();
-if (findTool(location.hash.slice(1))) openTool(location.hash.slice(1));
+function detectUrlTool() {
+  const hashTool = location.hash.slice(1);
+  if (findTool(hashTool)) return hashTool;
+  if (location.pathname.startsWith(APP_ROOT.pathname)) {
+    const slug = location.pathname
+      .slice(APP_ROOT.pathname.length)
+      .replace(/^\/+|\/+$/g, "");
+    if (slug && findTool(slug)) return slug;
+  }
+  const pageTool = document.documentElement.dataset.toolPage;
+  if (pageTool && findTool(pageTool)) return pageTool;
+  return "";
+}
+async function consumeSharedPayload() {
+  const params = new URLSearchParams(location.search);
+  if (params.get("shared") !== "1") return false;
+  params.delete("shared");
+  const qs = params.toString();
+  history.replaceState(
+    null,
+    "",
+    location.pathname + (qs ? `?${qs}` : "") + location.hash,
+  );
+  if (!("caches" in window)) return false;
+  try {
+    const metaUrl = new URL("__shared_meta__", APP_ROOT).href;
+    for (const key of await caches.keys()) {
+      if (!key.startsWith("tinylab-v2-")) continue;
+      const cache = await caches.open(key);
+      const res = await cache.match(metaUrl);
+      if (!res) continue;
+      const payload = await res.json();
+      await cache.delete(metaUrl);
+      const sharedFiles = [];
+      for (const m of payload.files || []) {
+        const fRes = await cache.match(m.url);
+        if (fRes) {
+          const blob = await fRes.blob();
+          sharedFiles.push(
+            new File([blob], m.name || "compartilhado", {
+              type: m.type || blob.type || "application/octet-stream",
+              lastModified: m.lastModified || Date.now(),
+            }),
+          );
+          await cache.delete(m.url);
+        }
+      }
+      if (sharedFiles.length) {
+        openIncomingFiles(sharedFiles, true);
+        return true;
+      }
+      if (payload.text) {
+        openTool("qr-code-studio", { content: payload.text });
+        toast(
+          L(
+            "Texto/link compartilhado carregado no QR Code Studio!",
+            "Shared text/link loaded into QR Code Studio!",
+          ),
+        );
+        return true;
+      }
+    }
+  } catch {}
+  return false;
+}
+consumeSharedPayload().then((handled) => {
+  if (handled) return;
+  const initial = detectUrlTool();
+  if (initial) openTool(initial);
+});
 window.addEventListener("hashchange", () => {
   const id = location.hash.slice(1);
   if (findTool(id) && id !== active?.id) openTool(id);
+});
+window.addEventListener("popstate", () => {
+  const id = detectUrlTool();
+  if (id && id !== active?.id) openTool(id);
+  else if (!id && active) closeWorkspace();
 });

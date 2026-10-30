@@ -38,11 +38,14 @@ export async function signIn(lang = "pt") {
         try {
           if (!result.access_token)
             throw new Error(message("Login cancelado.", "Sign-in cancelled."));
-          const response = await fetch("../keepai/api/auth.php?action=google", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ access_token: result.access_token }),
-          });
+          const response = await fetch(
+            new URL("../../keepai/api/auth.php?action=google", import.meta.url),
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ access_token: result.access_token }),
+            },
+          );
           const data = await response.json();
           if (!response.ok || !data.success)
             throw new Error(

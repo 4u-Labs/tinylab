@@ -663,3 +663,108 @@ test("Etapa 3 Media, Dev & Text tools: speed/crop FFmpeg args, 1D/2D barcode rou
   assert.equal(changed[1].leftText, "b");
   assert.equal(changed[1].rightText, "c");
 });
+
+test("Etapa 4 SEO static tool pages, sitemap.xml, Open Graph banner and PWA share_target", async () => {
+  const vm = await import("node:vm");
+  const { readFile, stat } = await import("node:fs/promises");
+
+  // 1. Sitemap contains root + all 130 internal tools, excluding external apps
+  const sitemap = await readFile(
+    new URL("../sitemap.xml", import.meta.url),
+    "utf8",
+  );
+  const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  const internalCount = tools.filter((t) => !t.external).length;
+  assert.equal(internalCount, 130);
+  assert.equal(locs.length, internalCount + 1);
+  assert.equal(locs[0], "https://4u.ia.br/app/tinylab/");
+  assert.ok(locs.includes("https://4u.ia.br/app/tinylab/merge-pdf/"));
+  assert.ok(!locs.some((u) => u.includes("clipcut-studio")));
+
+  // 2. OG banner assets exist
+  const bannerStat = await stat(new URL("../og-banner.jpg", import.meta.url));
+  assert.ok(bannerStat.size > 10_000);
+
+  // 3. Static per-tool landing pages contain canonical, JSON-LD WebApplication+FAQPage, and seoToolSheet
+  for (const tid of ["merge-pdf", "remove-bg", "qr-code-studio"]) {
+    const html = await readFile(
+      new URL(`../${tid}/index.html`, import.meta.url),
+      "utf8",
+    );
+    assert.ok(html.includes(`data-tool-page="${tid}"`));
+    assert.ok(
+      html.includes(
+        `<link rel="canonical" href="https://4u.ia.br/app/tinylab/${tid}/" />`,
+      ),
+    );
+    assert.ok(html.includes('src="../assets/main.js"'));
+    assert.ok(html.includes('id="seoToolSheet"'));
+    const ldMatch = html.match(
+      /<script type="application\/ld\+json" id="schemaJson">([\s\S]*?)<\/script>/,
+    );
+    assert.ok(ldMatch, `Missing JSON-LD in ${tid}`);
+    const parsed = JSON.parse(ldMatch[1]);
+    assert.equal(parsed["@graph"][0]["@type"], "WebApplication");
+    assert.equal(parsed["@graph"][2]["@type"], "FAQPage");
+    assert.equal(parsed["@graph"][2].mainEntity.length, 3);
+  }
+
+  // 4. PWA manifest share_target + SW POST share-target interception
+  const manifest = JSON.parse(
+    await readFile(new URL("../manifest.json", import.meta.url), "utf8"),
+  );
+  assert.equal(manifest.share_target.method, "POST");
+  assert.equal(manifest.share_target.action, "./?share-target=1");
+
+  const storedCache = new Map();
+  const events = {};
+  vm.runInNewContext(
+    await readFile(new URL("../sw.js", import.meta.url), "utf8"),
+    {
+      URL,
+      Response,
+      Headers,
+      Promise,
+      Date,
+      JSON,
+      self: {
+        location: { href: "https://example.test/app/tinylab/sw.js" },
+        addEventListener: (name, fn) => (events[name] = fn),
+        skipWaiting() {},
+        clients: { claim: async () => {} },
+      },
+      caches: {
+        open: async () => ({
+          put: async (k, v) => storedCache.set(k, v),
+        }),
+      },
+    },
+  );
+  const fd = new FormData();
+  fd.append(
+    "files",
+    new File(["%PDF-1.4"], "compartilhado.pdf", { type: "application/pdf" }),
+  );
+  let shareResponsePromise;
+  events.fetch({
+    request: {
+      method: "POST",
+      url: "https://example.test/app/tinylab/?share-target=1",
+      headers: new Headers(),
+      formData: async () => fd,
+    },
+    respondWith: (p) => (shareResponsePromise = p),
+  });
+  assert.ok(shareResponsePromise);
+  const res = await shareResponsePromise;
+  assert.equal(res.status, 303);
+  assert.equal(
+    res.headers.get("location"),
+    "https://example.test/app/tinylab/?shared=1",
+  );
+  const metaJson = await storedCache
+    .get("https://example.test/app/tinylab/__shared_meta__")
+    .json();
+  assert.equal(metaJson.files.length, 1);
+  assert.equal(metaJson.files[0].name, "compartilhado.pdf");
+});

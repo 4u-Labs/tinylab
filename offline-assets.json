@@ -1,5 +1,5 @@
 {
-  "cache": "tinylab-v2-7fc8fad3a3ee",
+  "cache": "tinylab-v2-4f1e40678206",
   "assets": [
     "./",
     "./index.html",
@@ -10,9 +10,11 @@
     "./icon-96.png",
     "./icon-192.png",
     "./icon-512.png",
+    "./og-banner.jpg",
+    "./og-banner.webp",
     "./assets/chunk-CQRMCM6E.js",
     "./assets/chunk-LOPRU26B.js",
-    "./assets/chunk-37SKTMGN.js",
+    "./assets/chunk-PKTKOK67.js",
     "./assets/chunk-HC5TXPP5.js",
     "./assets/chunk-IU4FJZH2.js",
     "./assets/chunk-UEMBH22S.js",

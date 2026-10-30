@@ -24,4 +24,9 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(caught.exception.code,415)
     def test_loopback_capabilities(self):
         data=json.load(urllib.request.urlopen(self.base+'/api/capabilities'));self.assertTrue(data['local'])
+    def test_seo_tool_landing_page_and_sitemap(self):
+        page=urllib.request.urlopen(self.base+'/merge-pdf/').read().decode('utf-8')
+        self.assertIn('data-tool-page="merge-pdf"',page)
+        sitemap=urllib.request.urlopen(self.base+'/sitemap.xml').read().decode('utf-8')
+        self.assertIn('https://4u.ia.br/app/tinylab/merge-pdf/',sitemap)
 if __name__=='__main__':unittest.main()
