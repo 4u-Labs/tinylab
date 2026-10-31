@@ -1806,6 +1806,240 @@ dev(
   "Get HEX, RGB and HSL from a color.",
   [color],
 );
+dev(
+  "youtube-thumbnail",
+  "Baixar Thumbnail do YouTube (HD/4K)",
+  "YouTube Thumbnail Downloader (HD/4K)",
+  "Extraia e baixe capas de vídeos e Shorts do YouTube em máxima resolução (MaxRes 1280×720, SD, HQ, MQ e WebP).",
+  "Extract and download YouTube video and Shorts thumbnails in full resolution (MaxRes 1280×720, SD, HQ, MQ and WebP).",
+  [
+    opt(
+      "content",
+      "URL ou ID do vídeo do YouTube",
+      "YouTube video URL or ID",
+      "text",
+      "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    ),
+    sel("resolution", "Resolução da capa", "Thumbnail resolution", [
+      [
+        "all",
+        "Todas as resoluções (HD + SD + HQ + Links)",
+        "All resolutions (HD + SD + HQ + Links)",
+      ],
+      [
+        "maxresdefault",
+        "Máxima HD (1280×720 · maxresdefault)",
+        "Max HD (1280×720 · maxresdefault)",
+      ],
+      [
+        "sddefault",
+        "Padrão SD (640×480 · sddefault)",
+        "Standard SD (640×480 · sddefault)",
+      ],
+      [
+        "hqdefault",
+        "Alta Qualidade (480×360 · hqdefault)",
+        "High Quality (480×360 · hqdefault)",
+      ],
+      [
+        "mqdefault",
+        "Média (320×180 · mqdefault)",
+        "Medium (320×180 · mqdefault)",
+      ],
+    ]),
+    sel("format", "Formato de saída", "Output format", [
+      ["jpg", "JPEG original (.jpg)", "Original JPEG (.jpg)"],
+      ["webp", "WebP otimizado (.webp)", "Optimized WebP (.webp)"],
+      ["png", "PNG sem perdas (.png)", "Lossless PNG (.png)"],
+    ]),
+  ],
+);
+dev(
+  "youtube-embed",
+  "Gerador de Código Embed do YouTube",
+  "YouTube Embed Code Generator",
+  "Gere código HTML/CSS responsivo (16:9 ou 9:16 Shorts) com modo sem cookies, tempo de início, autoplay e loop.",
+  "Generate responsive 16:9 or 9:16 Shorts HTML/CSS iframe embed code with privacy mode, start time, autoplay and loop.",
+  [
+    opt(
+      "content",
+      "URL ou ID do vídeo / Short",
+      "YouTube video / Short URL or ID",
+      "text",
+      "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    ),
+    sel("aspect", "Proporção do player", "Player aspect ratio", [
+      [
+        "16:9",
+        "Horizontal 16:9 (Vídeo padrão)",
+        "Landscape 16:9 (Standard video)",
+      ],
+      ["9:16", "Vertical 9:16 (YouTube Shorts)", "Vertical 9:16 (YouTube Shorts)"],
+    ]),
+    sel("privacy", "Modo de privacidade (LGPD/GDPR)", "Privacy mode (GDPR/LGPD)", [
+      [
+        "nocookie",
+        "Ativado (youtube-nocookie.com)",
+        "Enabled (youtube-nocookie.com)",
+      ],
+      ["standard", "Padrão (youtube.com)", "Standard (youtube.com)"],
+    ]),
+    num(
+      "start",
+      "Iniciar em (segundos; 0 = início)",
+      "Start at (seconds; 0 = beginning)",
+      0,
+      0,
+      86400,
+    ),
+    sel("autoplay", "Reprodução automática", "Autoplay", [
+      ["0", "Desativado", "Disabled"],
+      ["1", "Ativado (Mudo / Muted)", "Enabled (Muted)"],
+    ]),
+    sel("loop", "Repetir em loop", "Loop video", [
+      ["0", "Não repetir", "No loop"],
+      ["1", "Repetir continuamente", "Loop continuously"],
+    ]),
+    sel("controls", "Controles do player", "Player controls", [
+      ["1", "Exibir controles", "Show controls"],
+      ["0", "Ocultar controles", "Hide controls"],
+    ]),
+  ],
+);
+dev(
+  "youtube-money-calculator",
+  "Calculadora de Monetização do YouTube (CPM/RPM)",
+  "YouTube Money Calculator (CPM/RPM)",
+  "Estime ganhos diários, mensais e anuais do AdSense em Dólar (USD) e Real (BRL) por nicho, visualizações e RPM.",
+  "Estimate daily, monthly and yearly YouTube AdSense earnings in USD and BRL by niche, views and RPM.",
+  [
+    num(
+      "views",
+      "Visualizações por dia (média)",
+      "Daily views (average)",
+      10000,
+      1,
+      1000000000,
+    ),
+    sel("niche", "Nicho do canal (CPM base)", "Channel niche (base CPM)", [
+      [
+        "finance",
+        "Finanças, Investimentos & Negócios ($12.00 CPM)",
+        "Finance, Investing & Business ($12.00 CPM)",
+      ],
+      [
+        "marketing",
+        "Marketing Digital & E-commerce ($9.50 CPM)",
+        "Digital Marketing & E-commerce ($9.50 CPM)",
+      ],
+      [
+        "tech",
+        "Tecnologia, Programação & IA ($8.50 CPM)",
+        "Tech, Programming & AI ($8.50 CPM)",
+      ],
+      [
+        "education",
+        "Educação, Idiomas & Carreira ($6.00 CPM)",
+        "Education, Languages & Career ($6.00 CPM)",
+      ],
+      [
+        "lifestyle",
+        "Vlog, Lifestyle & Saúde ($4.20 CPM)",
+        "Vlog, Lifestyle & Health ($4.20 CPM)",
+      ],
+      [
+        "gaming",
+        "Games & Geek ($2.80 CPM)",
+        "Gaming & Geek ($2.80 CPM)",
+      ],
+      [
+        "entertainment",
+        "Entretenimento, Cortes & Humor ($2.20 CPM)",
+        "Entertainment & Comedy ($2.20 CPM)",
+      ],
+      [
+        "music",
+        "Música & Shorts ($0.80 CPM)",
+        "Music & Shorts ($0.80 CPM)",
+      ],
+      [
+        "custom",
+        "Usar CPM personalizado abaixo",
+        "Use custom CPM below",
+      ],
+    ]),
+    num(
+      "customCpm",
+      "CPM personalizado (USD; usado se selecionado acima)",
+      "Custom CPM (USD; used if selected above)",
+      5,
+      0.1,
+      200,
+    ),
+    num(
+      "monetizedPct",
+      "Visualizações monetizadas (%)",
+      "Monetized playbacks (%)",
+      65,
+      5,
+      100,
+    ),
+    num(
+      "exchangeRate",
+      "Cotação Dólar → Real (R$)",
+      "USD to BRL exchange rate (R$)",
+      5.8,
+      1,
+      25,
+    ),
+  ],
+);
+dev(
+  "youtube-id-extractor",
+  "Extrator de ID e Links do YouTube",
+  "YouTube ID & Link Extractor",
+  "Extraia ID de vídeo, playlist ou canal e gere links curtos, link de inscrição direta (?sub_confirmation=1) e URLs de capa.",
+  "Extract video, playlist or channel IDs and generate short links, direct subscribe links (?sub_confirmation=1) and thumbnail URLs.",
+  [
+    opt(
+      "content",
+      "URL do vídeo, Short, Playlist ou Canal (@handle)",
+      "Video, Short, Playlist or Channel (@handle) URL",
+      "text",
+      "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    ),
+    num(
+      "timestamp",
+      "Adicionar tempo no link (segundos; 0 = sem tempo)",
+      "Add timestamp to link (seconds; 0 = none)",
+      0,
+      0,
+      86400,
+    ),
+  ],
+);
+dev(
+  "youtube-metadata",
+  "Extrator de Metadados, Tags e Capítulos do YouTube",
+  "YouTube Metadata, Hashtag & Chapter Extractor",
+  "Inspecione título, canal e oEmbed via URL e extraia todas as #hashtags, capítulos (00:00), links e palavras-chave da descrição.",
+  "Inspect video title, author and oEmbed via URL and extract all #hashtags, chapters (00:00), links and keywords from descriptions.",
+  [
+    opt(
+      "url",
+      "URL do vídeo do YouTube (opcional)",
+      "YouTube video URL (optional)",
+      "text",
+      "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    ),
+    area(
+      "content",
+      "Cole a descrição, tags ou transcrição do vídeo para extrair capítulos e hashtags",
+      "Paste video description, tags or transcript to extract chapters & hashtags",
+      "00:00 Introdução\n01:45 Como configurar a ferramenta\n04:20 Dicas de SEO para YouTube\n#youtube #criadores #seo #tinylab",
+    ),
+  ],
+);
 const ai = (id, pt, en, desc, endesc, options = [], extra = {}) =>
   add("ai", id, pt, en, desc, endesc, options, {
     input: "text",
@@ -2182,6 +2416,139 @@ ai(
     aiTier,
   ],
 );
+ai(
+  "ai-youtube-titles",
+  "Gerador de Títulos Virais para YouTube (Alto CTR)",
+  "AI YouTube High-CTR Title Generator",
+  "Gere 10 títulos magnéticos otimizados para cliques (Curiosidade, Lista/Como fazer e Opinião Forte) + ideias de texto para a capa.",
+  "Generate 10 high-CTR YouTube titles (Curiosity, List/How-To and Contrarian angles) + thumbnail text ideas.",
+  [
+    area(
+      "content",
+      "Tema do vídeo, público-alvo e principal promessa",
+      "Video topic, target audience & main promise",
+    ),
+    sel("angle", "Estilo principal de CTR", "Primary CTR angle", [
+      [
+        "mixed",
+        "Mix Completo (Curiosidade + Como Fazer + Alerta)",
+        "Full Mix (Curiosity + How-To + Warning)",
+      ],
+      [
+        "curiosity",
+        "Lacuna de Curiosidade & Segredo Revelado",
+        "Curiosity Gap & Secret Revealed",
+      ],
+      [
+        "educational",
+        "Passo a Passo, Tutorial & Lista Prática",
+        "Step-by-Step, Tutorial & Practical List",
+      ],
+      [
+        "contrarian",
+        "Opinião Forte, Erro Comum & Comparativo",
+        "Contrarian, Common Mistake & Comparison",
+      ],
+    ]),
+    aiTier,
+  ],
+);
+ai(
+  "ai-youtube-tags",
+  "Gerador de Tags e Hashtags para YouTube SEO",
+  "AI YouTube SEO Tags & Hashtags Generator",
+  "Gere o bloco de tags separado por vírgulas (até 500 caracteres pronto para o YouTube Studio), hashtags e palavras-chave de cauda longa.",
+  "Generate a comma-separated tag block (up to 500 characters ready for YouTube Studio), hashtags and long-tail search keywords.",
+  [
+    area(
+      "content",
+      "Título ou tema do vídeo e nicho do canal",
+      "Video title or topic and channel niche",
+    ),
+    sel("scope", "Foco de descoberta", "Discovery focus", [
+      [
+        "search",
+        "Busca do YouTube (SEO + Cauda Longa)",
+        "YouTube Search (SEO + Long-tail)",
+      ],
+      [
+        "suggested",
+        "Vídeos Sugeridos & Tendências",
+        "Suggested Videos & Trends",
+      ],
+      [
+        "shorts",
+        "YouTube Shorts, Reels & TikTok",
+        "YouTube Shorts, Reels & TikTok",
+      ],
+    ]),
+    aiTier,
+  ],
+);
+ai(
+  "ai-shorts-script",
+  "Roteirizador de Shorts, Reels e TikTok",
+  "AI Shorts, Reels & TikTok Scriptwriter",
+  "Crie roteiros verticais de alta retenção com Gancho de 3 segundos, cortes visuais (B-Roll), ritmo dinâmico e CTA final.",
+  "Create high-retention vertical scripts with a 3-second hook, visual B-Roll cues, fast pacing and closing CTA.",
+  [
+    area(
+      "content",
+      "Ideia, dica rápida ou história para o vídeo curto",
+      "Idea, quick tip or story for the short video",
+    ),
+    sel("duration", "Duração e ritmo", "Duration & pacing", [
+      [
+        "30s",
+        "30 segundos (Direto ao ponto / Rápido)",
+        "30 seconds (Fast & punchy)",
+      ],
+      [
+        "60s",
+        "60 segundos (Storytelling + Passo a passo)",
+        "60 seconds (Storytelling + Step-by-step)",
+      ],
+      [
+        "loop",
+        "Roteiro em Loop Infinito (Final conecta ao início)",
+        "Infinite Loop Script (Ending loops to hook)",
+      ],
+    ]),
+    aiTier,
+  ],
+);
+ai(
+  "ai-youtube-description",
+  "Gerador de Descrição e Capítulos para YouTube",
+  "AI YouTube Description & Chapters Generator",
+  "Gere descrições otimizadas para SEO com resumo nas 2 primeiras linhas, capítulos (timestamps 00:00), links de ação e hashtags.",
+  "Generate SEO-optimized YouTube descriptions with a 2-line hook, chapter timestamps (00:00), CTA links and hashtags.",
+  [
+    area(
+      "content",
+      "Título do vídeo, tópicos abordados ou roteiro resumido",
+      "Video title, covered topics or brief outline",
+    ),
+    sel("descStyle", "Estrutura da descrição", "Description structure", [
+      [
+        "complete",
+        "Completa (Resumo SEO + Capítulos 00:00 + CTA + Tags)",
+        "Complete (SEO Summary + 00:00 Chapters + CTA + Tags)",
+      ],
+      [
+        "chapters",
+        "Foco em Capítulos Detalhados (Timestamps)",
+        "Detailed Chapter Timestamps Focus",
+      ],
+      [
+        "minimal",
+        "Enxuta e Direta (Conversão / Links)",
+        "Clean & Direct (Conversion / Links)",
+      ],
+    ]),
+    aiTier,
+  ],
+);
 export const tools = TOOLS;
 export function findTool(id) {
   return tools.find((t) => t.id === id);
@@ -2203,16 +2570,16 @@ export const synonyms = {
   senha: "password proteger",
   recortar: "cortar crop trim",
   audio: "audio som musica voz microfone tts denoise",
-  video: "video filme reels shorts tiktok clipcut reverse",
-  baixar: "download baixou youtube instagram tiktok",
-  download: "baixar baixou video audio",
+  video: "video filme reels shorts tiktok clipcut reverse youtube",
+  baixar: "download baixou youtube instagram tiktok thumbnail capa",
+  download: "baixar baixou video audio thumbnail",
   apagar: "remover tarjar redact inpaint objeto marca",
   limpar: "clean remover metadados strip denoise",
   vetor: "svg vetorizar vectorize",
   carrossel: "instagram grade split carousel",
   avatar: "perfil pfp foto",
   print: "screenshot captura mockup meme",
-  codigo: "barcode qr ean128 jwt regex diff sql",
+  codigo: "barcode qr ean128 jwt regex diff sql embed iframe",
   legenda: "srt subtitles caption queimar hardcode",
   slides: "powerpoint pptx apresentacao",
   ebook: "epub livro kindle pdf",
@@ -2220,6 +2587,12 @@ export const synonyms = {
   photoshop: "psd tiff bmp ico",
   paleta: "cores hex rgb color picker eyedropper",
   curriculo: "resume cv carta cover letter",
+  youtube: "youtube thumbnail embed cpm rpm shorts tags roteiro",
+  capa: "thumbnail miniatura youtube",
+  miniatura: "thumbnail capa youtube",
+  monetizacao: "money cpm rpm adsense ganhos youtube",
+  ganhos: "money cpm rpm monetizacao adsense",
+  roteiro: "script shorts reels tiktok youtube",
 };
 export function searchTools(query, category = "all", lang = "pt") {
   const terms = normalize(query).split(/\s+/).filter(Boolean);

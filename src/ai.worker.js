@@ -283,6 +283,32 @@ self.onmessage = async ({ data }) => {
             : o.codeTask === "refactor"
               ? `Review the code below, identify potential bugs, edge cases or performance issues, and provide a clean refactored version with explanations in ${lang}.`
               : `Explain how the code below works step by step in clear ${lang}, highlighting inputs, logic flow, and outputs.`,
+        "ai-youtube-titles":
+          o.angle === "curiosity"
+            ? `Generate 10 high-CTR YouTube titles focused on curiosity gaps and intriguing hooks in ${lang}, plus 3 short thumbnail text ideas (2-4 words each), based on the video topic below.`
+            : o.angle === "educational"
+              ? `Generate 10 high-CTR educational, step-by-step and listicle YouTube titles in ${lang}, plus 3 short thumbnail text ideas (2-4 words each), based on the video topic below.`
+              : o.angle === "contrarian"
+                ? `Generate 10 high-CTR contrarian, warning or comparison YouTube titles in ${lang}, plus 3 short thumbnail text ideas (2-4 words each), based on the video topic below.`
+                : `Generate 10 high-CTR YouTube titles in ${lang} divided into 3 categories (Curiosity Gap, How-To/List, and Strong Opinion/Warning), plus 5 short punchy thumbnail text ideas, based on the topic below.`,
+        "ai-youtube-tags":
+          o.scope === "shorts"
+            ? `Generate a complete YouTube Shorts / Reels / TikTok SEO pack in ${lang} containing: 1) Comma-separated YouTube Studio tag block (under 500 characters), 2) 15 viral vertical-video #hashtags, and 3) 10 short-form discovery keywords for the topic below.`
+            : o.scope === "suggested"
+              ? `Generate a YouTube Suggested Videos & Trends SEO pack in ${lang} containing: 1) Comma-separated YouTube Studio tag block (under 500 characters), 2) 12 high-relevance #hashtags, and 3) 10 related topic keywords for the video below.`
+              : `Generate a complete YouTube Search SEO pack in ${lang} containing: 1) Ready-to-paste comma-separated YouTube Studio tag block (strictly under 500 characters), 2) 10 best #hashtags, and 3) 10 long-tail search phrases with high intent for the topic below.`,
+        "ai-shorts-script":
+          o.duration === "30s"
+            ? `Write a fast-paced 30-second vertical script (YouTube Shorts, Reels, TikTok) in ${lang} with [00-03s Pattern-Interrupt Hook], [03-22s Rapid Value & Visual B-Roll Cues], and [22-30s Punchy CTA] for the idea below.`
+            : o.duration === "loop"
+              ? `Write a seamless Infinite-Loop vertical video script (Shorts, Reels, TikTok) in ${lang} with [00-03s Hook], [03-50s Retention Beats & Visual Cues], and [50-60s Loop Transition where the last sentence grammatically flows back into the first sentence] for the idea below.`
+              : `Write a high-retention 60-second vertical script (YouTube Shorts, Reels, TikTok) in ${lang} with [00-03s Hook], [03-15s Setup], [15-48s Step-by-Step Value + Visual Cues], and [48-60s Call-to-Action] for the idea below.`,
+        "ai-youtube-description":
+          o.descStyle === "chapters"
+            ? `Write a YouTube video description in ${lang} featuring a compelling 2-line SEO hook, a detailed list of Chapter Timestamps starting at 00:00, key takeaways, and relevant #hashtags based on the outline below.`
+            : o.descStyle === "minimal"
+              ? `Write a clean, high-conversion YouTube description in ${lang} with a strong 2-line summary, essential timestamps (starting at 00:00), call-to-action links placeholder, and 5 #hashtags based on the topic below.`
+              : `Write a complete SEO-optimized YouTube description in ${lang} containing: 1) First 2 lines optimized for search CTR, 2) Detailed video summary, 3) Chapter Timestamps starting at 00:00, 4) Resources/CTA section, and 5) 5-8 SEO #hashtags based on the topic below.`,
       };
       if (!requests[id]) throw new Error("Unknown AI operation");
       const isCreative = [
@@ -295,6 +321,10 @@ self.onmessage = async ({ data }) => {
         "ai-brand",
         "ai-legal",
         "ai-code",
+        "ai-youtube-titles",
+        "ai-youtube-tags",
+        "ai-shorts-script",
+        "ai-youtube-description",
       ].includes(id);
       let content = String(o.content || "").trim();
       if (!content) throw new Error("Texto vazio / Empty text.");

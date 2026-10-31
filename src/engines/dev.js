@@ -509,8 +509,352 @@ export function testRegex(pattern, flags = "g", content = "", replacement = "") 
 
 function bytesToBase64(bytes) {
   let bin = "";
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  for (let i = 0; i < bytes.length; i++) bin += String(fromCharCodeSafe(bytes[i]));
   return btoa(bin);
+}
+function fromCharCodeSafe(b) {
+  return String.fromCharCode(b);
+}
+
+function parseYouTubeTimestamp(raw) {
+  if (!raw) return 0;
+  const s = String(raw).trim();
+  if (/^\d+$/.test(s)) return Number(s);
+  const m = s.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$/i);
+  if (m && (m[1] || m[2] || m[3])) {
+    return (
+      Number(m[1] || 0) * 3600 +
+      Number(m[2] || 0) * 60 +
+      Number(m[3] || 0)
+    );
+  }
+  return 0;
+}
+
+export function extractYouTubeInfo(rawInput) {
+  const raw = String(rawInput || "").trim();
+  if (!raw)
+    throw new Error(
+      "Informe uma URL ou ID do YouTube / Enter a YouTube URL or ID.",
+    );
+  if (/^[A-Za-z0-9_-]{11}$/.test(raw)) {
+    return {
+      videoId: raw,
+      playlistId: null,
+      channelId: null,
+      channelHandle: null,
+      startSeconds: 0,
+      kind: "video",
+    };
+  }
+  if (/^@[A-Za-z0-9_.-]{2,40}$/.test(raw)) {
+    return {
+      videoId: null,
+      playlistId: null,
+      channelId: null,
+      channelHandle: raw,
+      startSeconds: 0,
+      kind: "channel",
+    };
+  }
+  if (/^UC[A-Za-z0-9_-]{20,28}$/.test(raw)) {
+    return {
+      videoId: null,
+      playlistId: null,
+      channelId: raw,
+      channelHandle: null,
+      startSeconds: 0,
+      kind: "channel",
+    };
+  }
+  let urlStr = raw;
+  if (!/^https?:\/\//i.test(urlStr) && /(?:youtube\.com|youtu\.be|youtube-nocookie\.com)/i.test(urlStr)) {
+    urlStr = "https://" + urlStr.replace(/^\/+/, "");
+  }
+  let parsed;
+  try {
+    parsed = new URL(urlStr);
+  } catch {
+    const idMatch = raw.match(/(?:v=|youtu\.be\/|shorts\/|embed\/|live\/)([A-Za-z0-9_-]{11})/);
+    if (idMatch) {
+      return {
+        videoId: idMatch[1],
+        playlistId: null,
+        channelId: null,
+        channelHandle: null,
+        startSeconds: 0,
+        kind: "video",
+      };
+    }
+    throw new Error(
+      "URL ou ID do YouTube inválido / Invalid YouTube URL or ID.",
+    );
+  }
+  const host = parsed.hostname.replace(/^(www\.|m\.|music\.)/i, "").toLowerCase();
+  if (!["youtube.com", "youtu.be", "youtube-nocookie.com"].includes(host)) {
+    throw new Error(
+      "Informe um link válido do YouTube (youtube.com ou youtu.be) / Enter a valid YouTube link.",
+    );
+  }
+  let videoId = null;
+  let kind = "video";
+  const pathParts = parsed.pathname.split("/").filter(Boolean);
+  if (host === "youtu.be" && pathParts[0]) {
+    videoId = pathParts[0];
+  } else if (parsed.searchParams.get("v")) {
+    videoId = parsed.searchParams.get("v");
+  } else if (
+    ["shorts", "embed", "live", "v", "e"].includes(pathParts[0]) &&
+    pathParts[1]
+  ) {
+    videoId = pathParts[1];
+    if (pathParts[0] === "shorts") kind = "shorts";
+    if (pathParts[0] === "live") kind = "live";
+  }
+  if (videoId && !/^[A-Za-z0-9_-]{11}$/.test(videoId)) {
+    videoId = videoId.slice(0, 11);
+    if (!/^[A-Za-z0-9_-]{11}$/.test(videoId)) videoId = null;
+  }
+  const playlistId = parsed.searchParams.get("list") || null;
+  let channelHandle = null;
+  let channelId = null;
+  if (pathParts[0]?.startsWith("@")) {
+    channelHandle = pathParts[0];
+    kind = "channel";
+  } else if (pathParts[0] === "channel" && pathParts[1]) {
+    channelId = pathParts[1];
+    kind = "channel";
+  } else if ((pathParts[0] === "c" || pathParts[0] === "user") && pathParts[1]) {
+    channelHandle = "@" + pathParts[1].replace(/^@/, "");
+    kind = "channel";
+  } else if (!videoId && playlistId) {
+    kind = "playlist";
+  }
+  const startSeconds = parseYouTubeTimestamp(
+    parsed.searchParams.get("t") || parsed.searchParams.get("start"),
+  );
+  if (!videoId && !playlistId && !channelHandle && !channelId) {
+    throw new Error(
+      "Não foi possível identificar ID de vídeo, playlist ou canal na URL / Could not find a video, playlist or channel ID in the URL.",
+    );
+  }
+  return {
+    videoId,
+    playlistId,
+    channelId,
+    channelHandle,
+    startSeconds,
+    kind,
+  };
+}
+
+export function getYouTubeThumbnails(videoId) {
+  if (!videoId || !/^[A-Za-z0-9_-]{11}$/.test(videoId)) {
+    throw new Error(
+      "Informe uma URL ou ID de vídeo válido do YouTube (11 caracteres) / Enter a valid 11-character YouTube video URL or ID.",
+    );
+  }
+  return {
+    maxresdefault: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+    maxresWebp: `https://i.ytimg.com/vi_webp/${videoId}/maxresdefault.webp`,
+    sddefault: `https://i.ytimg.com/vi/${videoId}/sddefault.jpg`,
+    hqdefault: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+    mqdefault: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+  };
+}
+
+export function buildYouTubeEmbed(rawUrl, opts = {}) {
+  const info = extractYouTubeInfo(rawUrl);
+  if (!info.videoId) {
+    throw new Error(
+      "O código Embed requer uma URL ou ID de vídeo/Short do YouTube / Embed generator requires a YouTube video or Short URL/ID.",
+    );
+  }
+  const vid = info.videoId;
+  const isVertical =
+    opts.aspect === "9:16" || (!opts.aspect && info.kind === "shorts");
+  const host =
+    opts.privacy === "standard"
+      ? "https://www.youtube.com"
+      : "https://www.youtube-nocookie.com";
+  const params = new URLSearchParams();
+  const start = Number(opts.start || info.startSeconds || 0);
+  if (start > 0) params.set("start", String(Math.floor(start)));
+  if (String(opts.autoplay) === "1") {
+    params.set("autoplay", "1");
+    params.set("mute", "1");
+  }
+  if (String(opts.loop) === "1") {
+    params.set("loop", "1");
+    params.set("playlist", vid);
+  }
+  if (String(opts.controls) === "0") {
+    params.set("controls", "0");
+  }
+  params.set("rel", "0");
+  const qs = params.toString();
+  const src = `${host}/embed/${vid}${qs ? "?" + qs : ""}`;
+  const ratio = isVertical ? "9 / 16" : "16 / 9";
+  const maxWidth = isVertical ? "max-width:420px;margin:0 auto;" : "";
+  const iframeCode = `<div style="position:relative;width:100%;${maxWidth}aspect-ratio:${ratio};overflow:hidden;border-radius:12px;background:#000">\n  <iframe\n    src="${src}"\n    title="YouTube video player"\n    style="position:absolute;inset:0;width:100%;height:100%;border:0"\n    loading="lazy"\n    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"\n    referrerpolicy="strict-origin-when-cross-origin"\n    allowfullscreen\n  ></iframe>\n</div>`;
+  return { videoId: vid, src, isVertical, iframeCode };
+}
+
+const YOUTUBE_NICHE_CPM = {
+  finance: { cpm: 12.0, label: "Finanças, Investimentos & Negócios / Finance & Business" },
+  marketing: { cpm: 9.5, label: "Marketing Digital & E-commerce" },
+  tech: { cpm: 8.5, label: "Tecnologia, Programação & IA / Tech & AI" },
+  education: { cpm: 6.0, label: "Educação, Idiomas & Carreira / Education" },
+  lifestyle: { cpm: 4.2, label: "Vlog, Lifestyle & Saúde / Lifestyle & Health" },
+  gaming: { cpm: 2.8, label: "Games & Geek / Gaming" },
+  entertainment: { cpm: 2.2, label: "Entretenimento, Cortes & Humor / Entertainment" },
+  music: { cpm: 0.8, label: "Música & Shorts / Music & Shorts" },
+};
+
+export function calculateYouTubeMoney({
+  views = 10000,
+  niche = "tech",
+  customCpm = 5,
+  monetizedPct = 65,
+  exchangeRate = 5.8,
+} = {}) {
+  const dailyViews = Math.max(1, Number(views) || 10000);
+  const preset = YOUTUBE_NICHE_CPM[niche];
+  const grossCpm =
+    niche === "custom" || !preset
+      ? Math.max(0.05, Number(customCpm) || 5)
+      : preset.cpm;
+  const monRate = Math.min(100, Math.max(5, Number(monetizedPct) || 65)) / 100;
+  const fx = Math.max(0.5, Number(exchangeRate) || 5.8);
+  const creatorShare = 0.55; // YouTube Partner standard 55% creator / 45% YouTube split
+  const effectiveRpm = Number((grossCpm * monRate * creatorShare).toFixed(2));
+  const dailyUsd = (dailyViews / 1000) * effectiveRpm;
+  const monthlyUsd = dailyUsd * 30;
+  const yearlyUsd = dailyUsd * 365;
+  const round2 = (n) => Number(n.toFixed(2));
+  return {
+    niche: preset ? preset.label : "CPM Personalizado / Custom CPM",
+    dailyViews,
+    monthlyViews: dailyViews * 30,
+    yearlyViews: dailyViews * 365,
+    grossCpmUsd: round2(grossCpm),
+    monetizedPlaybacksPct: Math.round(monRate * 100),
+    creatorSharePct: 55,
+    effectiveRpmUsd: effectiveRpm,
+    effectiveRpmBrl: round2(effectiveRpm * fx),
+    exchangeRateBrl: round2(fx),
+    daily: {
+      usd: round2(dailyUsd),
+      brl: round2(dailyUsd * fx),
+      minUsd: round2(dailyUsd * 0.75),
+      maxUsd: round2(dailyUsd * 1.35),
+      minBrl: round2(dailyUsd * 0.75 * fx),
+      maxBrl: round2(dailyUsd * 1.35 * fx),
+    },
+    monthly: {
+      usd: round2(monthlyUsd),
+      brl: round2(monthlyUsd * fx),
+      minUsd: round2(monthlyUsd * 0.75),
+      maxUsd: round2(monthlyUsd * 1.35),
+      minBrl: round2(monthlyUsd * 0.75 * fx),
+      maxBrl: round2(monthlyUsd * 1.35 * fx),
+    },
+    yearly: {
+      usd: round2(yearlyUsd),
+      brl: round2(yearlyUsd * fx),
+      minUsd: round2(yearlyUsd * 0.75),
+      maxUsd: round2(yearlyUsd * 1.35),
+      minBrl: round2(yearlyUsd * 0.75 * fx),
+      maxBrl: round2(yearlyUsd * 1.35 * fx),
+    },
+  };
+}
+
+const STOPWORDS_YT = new Set([
+  "de", "da", "do", "das", "dos", "em", "no", "na", "nos", "nas", "um", "uma",
+  "para", "por", "com", "sem", "que", "como", "mais", "mas", "ou", "se", "ao",
+  "aos", "as", "os", "seu", "sua", "seus", "suas", "meu", "minha", "este",
+  "esta", "isso", "esse", "essa", "foi", "ser", "sao", "está", "esta", "sobre",
+  "entre", "ate", "the", "and", "for", "with", "that", "this", "from", "your",
+  "you", "are", "was", "were", "have", "has", "how", "what", "when", "where",
+  "who", "why", "http", "https", "www", "com", "watch", "youtu", "youtube",
+]);
+
+export function analyzeYouTubeMetadata(textInput = "", oembed = null) {
+  const combined = [oembed?.title || "", String(textInput || "")].join("\n").trim();
+  const hashtags = [
+    ...new Set(
+      (combined.match(/#[\p{L}\p{N}_-]+/gu) || []).map((h) => h.toLowerCase()),
+    ),
+  ];
+  const chapters = [];
+  const chapterRe = /(?:^|\n)\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*[-–—:|]?\s*([^\r\n]+)/g;
+  let cm;
+  while ((cm = chapterRe.exec(String(textInput || ""))) !== null) {
+    chapters.push({ timestamp: cm[1], title: cm[2].trim() });
+  }
+  const links = [
+    ...new Set(
+      (String(textInput || "").match(/https?:\/\/[^\s)>\]"']+/gi) || []),
+    ),
+  ];
+  const freq = new Map();
+  const words = combined
+    .toLowerCase()
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/#[\p{L}\p{N}_-]+/gu, " ")
+    .match(/[\p{L}\p{N}]{3,}/gu) || [];
+  for (const w of words) {
+    if (/^\d+$/.test(w) || STOPWORDS_YT.has(w)) continue;
+    freq.set(w, (freq.get(w) || 0) + 1);
+  }
+  const topKeywords = [...freq.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 20)
+    .map(([word, count]) => ({ word, count }));
+  const tagCandidates = [
+    ...hashtags.map((h) => h.slice(1)),
+    ...topKeywords.map((k) => k.word),
+  ];
+  const uniqueTags = [...new Set(tagCandidates)];
+  let studioTagBlock = "";
+  for (const tag of uniqueTags) {
+    const next = studioTagBlock ? `${studioTagBlock}, ${tag}` : tag;
+    if (next.length <= 500) studioTagBlock = next;
+  }
+  return {
+    ...(oembed ? { oembed } : {}),
+    hashtags,
+    chapters,
+    links,
+    topKeywords,
+    studioTagBlock,
+  };
+}
+
+async function fetchYouTubeOembed(videoUrl, offline = false) {
+  if (offline || typeof fetch !== "function") return null;
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 3200);
+    const res = await fetch(
+      `https://noembed.com/embed?url=${encodeURIComponent(videoUrl)}`,
+      { signal: ctrl.signal },
+    );
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data && data.title) {
+      return {
+        title: data.title,
+        authorName: data.author_name || "",
+        authorUrl: data.author_url || "",
+        thumbnailUrl: data.thumbnail_url || "",
+        provider: data.provider_name || "YouTube",
+      };
+    }
+  } catch {}
+  return null;
 }
 
 export async function run(id, files, o, ctx = {}) {
@@ -841,6 +1185,233 @@ export async function run(id, files, o, ctx = {}) {
       }
       r = `${h.toUpperCase()}\nrgb(${rgb.join(", ")})\nhsl(${Math.round(hh)}, ${Math.round(ss * 100)}%, ${Math.round(l * 100)}%)`;
       break;
+    }
+    case "youtube-thumbnail": {
+      const info = extractYouTubeInfo(s);
+      const thumbs = getYouTubeThumbnails(info.videoId);
+      const vid = info.videoId;
+      const resChoice = o.resolution || "all";
+      const fmt = o.format || "jpg";
+      const outs = [];
+      const resOrder =
+        resChoice === "all"
+          ? ["maxresdefault", "sddefault", "hqdefault"]
+          : [resChoice];
+
+      if (o.offline !== true && typeof fetch === "function") {
+        for (const resKey of resOrder) {
+          try {
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 4500);
+            const targetUrl =
+              fmt === "webp" && resKey === "maxresdefault"
+                ? thumbs.maxresWebp
+                : thumbs[resKey];
+            let resp = await fetch(targetUrl, { signal: ctrl.signal });
+            if (!resp.ok && resKey === "maxresdefault") {
+              resp = await fetch(thumbs.hqdefault, { signal: ctrl.signal });
+            }
+            clearTimeout(timer);
+            if (resp.ok) {
+              let imgBlob = await resp.blob();
+              let ext = fmt === "webp" && imgBlob.type === "image/webp" ? "webp" : "jpg";
+              if (
+                (fmt === "png" || (fmt === "webp" && ext !== "webp")) &&
+                (typeof document !== "undefined" || typeof OffscreenCanvas !== "undefined")
+              ) {
+                try {
+                  const { bitmap } = await import("../utils.js");
+                  const bmp = await bitmap(imgBlob);
+                  const c = canvas(bmp.width, bmp.height);
+                  c.getContext("2d").drawImage(bmp, 0, 0);
+                  bmp.close?.();
+                  const mime = fmt === "png" ? "image/png" : "image/webp";
+                  imgBlob = await toBlob(c, mime, 0.92);
+                  ext = fmt;
+                } catch {}
+              }
+              outs.push(output(imgBlob, `youtube-${vid}-${resKey}.${ext}`));
+            }
+          } catch {}
+        }
+      }
+
+      const report = [
+        `YouTube Video ID: ${vid}`,
+        `MaxRes HD (1280x720 JPG): ${thumbs.maxresdefault}`,
+        `MaxRes HD (1280x720 WebP): ${thumbs.maxresWebp}`,
+        `Standard SD (640x480 JPG): ${thumbs.sddefault}`,
+        `High Quality HQ (480x360 JPG): ${thumbs.hqdefault}`,
+        `Medium Quality MQ (320x180 JPG): ${thumbs.mqdefault}`,
+      ].join("\n");
+      outs.push(textOutput(report, `youtube-${vid}-thumbnails.txt`));
+      return outs;
+    }
+    case "youtube-embed": {
+      const emb = buildYouTubeEmbed(s, o);
+      const htmlDoc = `<!doctype html>\n<html lang="pt-BR">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<title>YouTube Embed — ${emb.videoId}</title>\n</head>\n<body style="margin:0;padding:24px;background:#0d0c14;color:#f5f3ff;font-family:system-ui,sans-serif">\n${emb.iframeCode}\n</body>\n</html>`;
+      return [
+        output(
+          new Blob([htmlDoc], { type: "text/html;charset=utf-8" }),
+          `youtube-embed-${emb.videoId}.html`,
+          emb.iframeCode,
+        ),
+      ];
+    }
+    case "youtube-money-calculator": {
+      const calc = calculateYouTubeMoney(o);
+      const fmtNum = (n) => Number(n).toLocaleString("pt-BR");
+      const fmtUsd = (n) => `$ ${Number(n).toFixed(2)}`;
+      const fmtBrl = (n) => `R$ ${Number(n).toFixed(2)}`;
+      const summary = [
+        `=== ESTIMATIVA DE MONETIZAÇÃO DO YOUTUBE (CPM / RPM) ===`,
+        `Nicho: ${calc.niche}`,
+        `Visualizações/dia: ${fmtNum(calc.dailyViews)} (${fmtNum(calc.monthlyViews)}/mês · ${fmtNum(calc.yearlyViews)}/ano)`,
+        `CPM Bruto dos Anunciantes: ${fmtUsd(calc.grossCpmUsd)} (${calc.monetizedPlaybacksPct}% exibições monetizadas)`,
+        `RPM Efetivo do Criador (55% AdSense): ${fmtUsd(calc.effectiveRpmUsd)} / 1.000 views (${fmtBrl(calc.effectiveRpmBrl)})`,
+        `Cotação considerada: US$ 1.00 = ${fmtBrl(calc.exchangeRateBrl)}`,
+        ``,
+        `• GANHO DIÁRIO ESTIMADO:`,
+        `  Média: ${fmtBrl(calc.daily.brl)} (${fmtUsd(calc.daily.usd)})`,
+        `  Faixa: ${fmtBrl(calc.daily.minBrl)} a ${fmtBrl(calc.daily.maxBrl)} (${fmtUsd(calc.daily.minUsd)} – ${fmtUsd(calc.daily.maxUsd)})`,
+        ``,
+        `• GANHO MENSAL ESTIMADO (30 dias):`,
+        `  Média: ${fmtBrl(calc.monthly.brl)} (${fmtUsd(calc.monthly.usd)})`,
+        `  Faixa: ${fmtBrl(calc.monthly.minBrl)} a ${fmtBrl(calc.monthly.maxBrl)} (${fmtUsd(calc.monthly.minUsd)} – ${fmtUsd(calc.monthly.maxUsd)})`,
+        ``,
+        `• GANHO ANUAL ESTIMADO (365 dias):`,
+        `  Média: ${fmtBrl(calc.yearly.brl)} (${fmtUsd(calc.yearly.usd)})`,
+        `  Faixa: ${fmtBrl(calc.yearly.minBrl)} a ${fmtBrl(calc.yearly.maxBrl)} (${fmtUsd(calc.yearly.minUsd)} – ${fmtUsd(calc.yearly.maxUsd)})`,
+      ].join("\n");
+      return [
+        textOutput(summary, "youtube-monetizacao.txt"),
+        textOutput(
+          JSON.stringify(calc, null, 2),
+          "youtube-monetizacao.json",
+          "application/json",
+        ),
+      ];
+    }
+    case "youtube-id-extractor": {
+      const info = extractYouTubeInfo(s);
+      const ts = Math.max(0, Number(o.timestamp || info.startSeconds || 0));
+      const links = {};
+      let oembed = null;
+      if (info.videoId) {
+        const vid = info.videoId;
+        links.watchUrl = `https://www.youtube.com/watch?v=${vid}${ts > 0 ? `&t=${ts}s` : ""}`;
+        links.shortUrl = `https://youtu.be/${vid}${ts > 0 ? `?t=${ts}` : ""}`;
+        links.shortsUrl = `https://www.youtube.com/shorts/${vid}`;
+        links.embedUrl = `https://www.youtube.com/embed/${vid}${ts > 0 ? `?start=${ts}` : ""}`;
+        links.embedNoCookieUrl = `https://www.youtube-nocookie.com/embed/${vid}${ts > 0 ? `?start=${ts}` : ""}`;
+        links.thumbnails = getYouTubeThumbnails(vid);
+        oembed = await fetchYouTubeOembed(
+          `https://www.youtube.com/watch?v=${vid}`,
+          o.offline === true,
+        );
+      }
+      if (info.playlistId) {
+        links.playlistUrl = `https://www.youtube.com/playlist?list=${info.playlistId}`;
+      }
+      const chBase = info.channelHandle
+        ? `https://www.youtube.com/${info.channelHandle}`
+        : info.channelId
+          ? `https://www.youtube.com/channel/${info.channelId}`
+          : oembed?.authorUrl || null;
+      if (chBase) {
+        links.channelUrl = chBase;
+        links.subscribeConfirmUrl = `${chBase}${chBase.includes("?") ? "&" : "?"}sub_confirmation=1`;
+      }
+      const payload = {
+        ...info,
+        ...(oembed ? { oembed } : {}),
+        links,
+      };
+      const lines = [
+        `Tipo detectado / Detected kind: ${info.kind}`,
+        ...(info.videoId ? [`Video ID: ${info.videoId}`] : []),
+        ...(info.playlistId ? [`Playlist ID: ${info.playlistId}`] : []),
+        ...(info.channelHandle ? [`Channel Handle: ${info.channelHandle}`] : []),
+        ...(info.channelId ? [`Channel ID: ${info.channelId}`] : []),
+        ...(oembed?.title ? [`Título / Title: ${oembed.title}`] : []),
+        ...(oembed?.authorName ? [`Canal / Channel: ${oembed.authorName}`] : []),
+        ``,
+        ...(links.watchUrl ? [`Link Padrão: ${links.watchUrl}`] : []),
+        ...(links.shortUrl ? [`Link Curto: ${links.shortUrl}`] : []),
+        ...(links.embedNoCookieUrl ? [`Link Embed (No-Cookie): ${links.embedNoCookieUrl}`] : []),
+        ...(links.subscribeConfirmUrl
+          ? [`Link de Inscrição Direta (?sub_confirmation=1): ${links.subscribeConfirmUrl}`]
+          : []),
+        ...(links.playlistUrl ? [`Link da Playlist: ${links.playlistUrl}`] : []),
+        ...(links.thumbnails
+          ? [
+              ``,
+              `Thumbnails:`,
+              `  MaxRes (1280x720): ${links.thumbnails.maxresdefault}`,
+              `  WebP (1280x720): ${links.thumbnails.maxresWebp}`,
+              `  SD (640x480): ${links.thumbnails.sddefault}`,
+              `  HQ (480x360): ${links.thumbnails.hqdefault}`,
+            ]
+          : []),
+      ];
+      return [
+        textOutput(lines.join("\n"), "youtube-links.txt"),
+        textOutput(
+          JSON.stringify(payload, null, 2),
+          "youtube-links.json",
+          "application/json",
+        ),
+      ];
+    }
+    case "youtube-metadata": {
+      const rawUrl = String(o.url || "").trim();
+      let videoInfo = null;
+      let oembed = null;
+      if (rawUrl) {
+        try {
+          videoInfo = extractYouTubeInfo(rawUrl);
+          if (videoInfo.videoId) {
+            oembed = await fetchYouTubeOembed(
+              `https://www.youtube.com/watch?v=${videoInfo.videoId}`,
+              o.offline === true,
+            );
+          }
+        } catch {}
+      }
+      if (!s.trim() && !videoInfo) {
+        throw new Error(
+          "Informe a URL do vídeo ou cole a descrição/texto para extrair metadados / Enter a video URL or paste description text.",
+        );
+      }
+      const meta = analyzeYouTubeMetadata(s, oembed);
+      const reportLines = [
+        `=== METADADOS, CAPÍTULOS E TAGS DO VÍDEO ===`,
+        ...(videoInfo?.videoId ? [`Video ID: ${videoInfo.videoId}`] : []),
+        ...(oembed?.title ? [`Título: ${oembed.title}`] : []),
+        ...(oembed?.authorName ? [`Canal: ${oembed.authorName} (${oembed.authorUrl})`] : []),
+        ``,
+        `--- CAPÍTULOS / TIMESTAMPS (${meta.chapters.length}) ---`,
+        ...(meta.chapters.length
+          ? meta.chapters.map((c) => `${c.timestamp} ${c.title}`)
+          : ["(Nenhum capítulo 00:00 encontrado no texto)"]),
+        ``,
+        `--- HASHTAGS EXTRAÍDAS (${meta.hashtags.length}) ---`,
+        meta.hashtags.length ? meta.hashtags.join(" ") : "(Nenhuma #hashtag encontrada)",
+        ``,
+        `--- BLOCO DE TAGS PARA YOUTUBE STUDIO (<= 500 caracteres) ---`,
+        meta.studioTagBlock || "(Sem palavras-chave suficientes)",
+        ``,
+        `--- LINKS ENCONTRADOS (${meta.links.length}) ---`,
+        ...(meta.links.length ? meta.links : ["(Nenhum link https:// encontrado)"]),
+      ];
+      return [
+        textOutput(reportLines.join("\n"), "youtube-metadata.txt"),
+        textOutput(
+          JSON.stringify({ videoInfo, ...meta }, null, 2),
+          "youtube-metadata.json",
+          "application/json",
+        ),
+      ];
     }
     default:
       throw new Error("Ferramenta desconhecida / Unknown tool.");

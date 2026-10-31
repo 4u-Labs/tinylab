@@ -140,6 +140,11 @@ qa/
 /uuid/
 /lorem-ipsum/
 /color-converter/
+/youtube-thumbnail/
+/youtube-embed/
+/youtube-money-calculator/
+/youtube-id-extractor/
+/youtube-metadata/
 /ocr-image/
 /ai-remove-bg/
 /transcribe/
@@ -160,4 +165,8 @@ qa/
 /ai-legal/
 /ai-transcript-summary/
 /ai-code/
+/ai-youtube-titles/
+/ai-youtube-tags/
+/ai-shorts-script/
+/ai-youtube-description/
 # END GENERATED SEO PAGES

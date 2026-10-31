@@ -10,6 +10,10 @@ import {
   scanCodesFromRgba,
   decodeJwt,
   testRegex,
+  extractYouTubeInfo,
+  buildYouTubeEmbed,
+  calculateYouTubeMoney,
+  analyzeYouTubeMetadata,
   run as dev,
 } from "../src/engines/dev.js";
 import {
@@ -43,7 +47,7 @@ import { run as data } from "../src/engines/data.js";
 import * as XLSX from "xlsx";
 test("catalog IDs are unique, bilingual and all route to engines", () => {
   assert.equal(new Set(tools.map((t) => t.id)).size, tools.length);
-  assert.equal(tools.length, 150);
+  assert.equal(tools.length, 159);
   for (const t of tools) {
     assert.ok(t.title.pt && t.title.en && t.description.pt && t.description.en);
     if (t.external) assert.match(t.external, /^https:\/\/4u\.ia\.br\/app\//);
@@ -66,6 +70,9 @@ test("search handles accents, synonyms and category", () => {
   );
   assert.ok(searchTools("paleta").some((t) => t.id === "image-palette"));
   assert.ok(searchTools("curriculo").some((t) => t.id === "ai-resume"));
+  assert.ok(searchTools("capa youtube").some((t) => t.id === "youtube-thumbnail"));
+  assert.ok(searchTools("monetizacao").some((t) => t.id === "youtube-money-calculator"));
+  assert.ok(searchTools("roteiro shorts").some((t) => t.id === "ai-shorts-script"));
 });
 test("page ranges fail rather than silently returning a different document", () => {
   assert.deepEqual(pageIndices("1-3, 5, 3", 5), [0, 1, 2, 4]);
@@ -693,7 +700,7 @@ test("Etapa 4 SEO static tool pages, sitemap.xml, Open Graph banner and PWA shar
   );
   const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
   const internalCount = tools.filter((t) => !t.external).length;
-  assert.equal(internalCount, 148);
+  assert.equal(internalCount, 157);
   assert.equal(locs.length, internalCount + 1);
   assert.equal(locs[0], "https://4u.ia.br/app/tinylab/");
   assert.ok(locs.includes("https://4u.ia.br/app/tinylab/merge-pdf/"));
@@ -1084,4 +1091,89 @@ test("Homepage UI integrity: specificIcons, badges, featured tools & Smart Dropz
     recommendToolsForFiles([mkFile("vazio.pdf", "application/pdf", 0)]).length,
     0,
   );
+});
+
+test("YouTube & Creator tools: thumbnail URLs, embed generator, money calculator, ID extractor & metadata parser", async () => {
+  // 1. URL & ID parser across watch, youtu.be, shorts, live, playlists and @handles
+  const infoWatch = extractYouTubeInfo(
+    "https://www.youtube.com/watch?v=dQw4w9WgXcQ&list=PL123456&t=1m30s",
+  );
+  assert.equal(infoWatch.videoId, "dQw4w9WgXcQ");
+  assert.equal(infoWatch.playlistId, "PL123456");
+  assert.equal(infoWatch.startSeconds, 90);
+
+  const infoShort = extractYouTubeInfo("https://youtube.com/shorts/dQw4w9WgXcQ");
+  assert.equal(infoShort.videoId, "dQw4w9WgXcQ");
+  assert.equal(infoShort.kind, "shorts");
+
+  const infoHandle = extractYouTubeInfo("https://www.youtube.com/@fbr4g4");
+  assert.equal(infoHandle.channelHandle, "@fbr4g4");
+  assert.equal(infoHandle.kind, "channel");
+
+  // 2. YouTube Thumbnail tool (offline mode returns direct resolution links)
+  const thumbOut = await dev("youtube-thumbnail", [], {
+    content: "https://youtu.be/dQw4w9WgXcQ",
+    resolution: "all",
+    format: "jpg",
+    offline: true,
+  });
+  assert.ok(thumbOut.length >= 1);
+  assert.ok(thumbOut.at(-1).text.includes("maxresdefault.jpg"));
+  assert.ok(thumbOut.at(-1).text.includes("maxresdefault.webp"));
+
+  // 3. YouTube Embed code generator
+  const [embedOut] = await dev("youtube-embed", [], {
+    content: "dQw4w9WgXcQ",
+    aspect: "16:9",
+    privacy: "nocookie",
+    start: 45,
+    autoplay: "1",
+    loop: "1",
+    controls: "1",
+  });
+  assert.ok(embedOut.name.endsWith(".html"));
+  assert.ok(embedOut.text.includes("https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ"));
+  assert.ok(embedOut.text.includes("start=45"));
+  assert.ok(embedOut.text.includes("autoplay=1"));
+  assert.ok(embedOut.text.includes("playlist=dQw4w9WgXcQ"));
+
+  // 4. YouTube Money Calculator (CPM/RPM)
+  const money = calculateYouTubeMoney({
+    views: 20000,
+    niche: "finance", // $12.00 CPM
+    monetizedPct: 65,
+    exchangeRate: 5.8,
+  });
+  assert.equal(money.grossCpmUsd, 12);
+  assert.equal(money.effectiveRpmUsd, 4.29); // 12 * 0.65 * 0.55 = 4.29
+  assert.equal(money.daily.usd, 85.8);
+  assert.ok(money.monthly.brl > 14000);
+  const moneyOut = await dev("youtube-money-calculator", [], {
+    views: 10000,
+    niche: "tech",
+    monetizedPct: 65,
+    exchangeRate: 5.8,
+  });
+  assert.equal(moneyOut.length, 2);
+  assert.ok(moneyOut[0].text.includes("RPM Efetivo"));
+
+  // 5. YouTube ID & Link Extractor
+  const idOut = await dev("youtube-id-extractor", [], {
+    content: "https://www.youtube.com/@fbr4g4",
+    timestamp: 0,
+    offline: true,
+  });
+  assert.equal(idOut.length, 2);
+  assert.ok(idOut[0].text.includes("sub_confirmation=1"));
+
+  // 6. YouTube Metadata, Chapters & Hashtags Extractor
+  const meta = analyzeYouTubeMetadata(
+    "00:00 Introdução ao TinyLab\n02:15 Como extrair capas do YouTube\n05:40 Conclusão\nConfira em https://4u.ia.br/app/tinylab/\n#TinyLab #YouTubeSEO #Criadores",
+    { title: "Guia Completo para Criadores no YouTube" },
+  );
+  assert.equal(meta.chapters.length, 3);
+  assert.equal(meta.chapters[1].timestamp, "02:15");
+  assert.deepEqual(meta.hashtags, ["#tinylab", "#youtubeseo", "#criadores"]);
+  assert.ok(meta.links.includes("https://4u.ia.br/app/tinylab/"));
+  assert.ok(meta.studioTagBlock.length > 0 && meta.studioTagBlock.length <= 500);
 });
