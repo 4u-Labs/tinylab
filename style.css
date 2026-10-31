@@ -231,6 +231,18 @@ progress {
   flex-direction: column;
   justify-content: center;
 }
+.hero-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  position: relative;
+}
+.hero-title-block {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
 .hero-pill {
   display: inline-flex;
   align-items: center;
@@ -252,11 +264,97 @@ progress {
   box-shadow: 0 0 10px var(--cyan);
 }
 h1 {
-  font-size: clamp(36px, 3.8vw, 54px);
+  font-size: clamp(34px, 3.15vw, 48px);
   line-height: 1.1;
-  letter-spacing: -2.2px;
+  letter-spacing: -2px;
   margin: 18px 0 14px;
   font-weight: 760;
+}
+.hero-arrow-callout {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  background: radial-gradient(
+    circle at 55% 50%,
+    #64e5d61c,
+    #bc8eff14 52%,
+    transparent 74%
+  );
+  border: 0;
+  padding: 8px 6px;
+  margin-top: 12px;
+  margin-right: -24px;
+  z-index: 3;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition:
+    transform 0.22s ease,
+    filter 0.22s ease;
+}
+.hero-arrow-callout:hover,
+.hero-arrow-callout:focus-visible {
+  transform: translateX(5px) scale(1.04);
+  filter: brightness(1.12);
+  outline: none;
+}
+.callout-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: linear-gradient(120deg, #bc8eff29, #64e5d626);
+  border: 1px solid #64e5d666;
+  color: #aef7ed;
+  font-size: 11px;
+  font-weight: 720;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  box-shadow:
+    0 4px 16px #00000045,
+    0 0 18px #64e5d622;
+}
+.callout-arrow-svg {
+  width: 158px;
+  height: 76px;
+  overflow: visible;
+  filter: drop-shadow(0 8px 20px #00000068) drop-shadow(0 0 18px #64e5d645);
+  animation: heroArrowFloat 2.2s ease-in-out infinite;
+}
+.arrow-chevron-1 {
+  animation: heroChevronPulse 1.6s ease-in-out infinite;
+}
+.arrow-chevron-2 {
+  animation: heroChevronPulse 1.6s ease-in-out 0.28s infinite;
+}
+.callout-caption {
+  font-size: 11.5px;
+  font-weight: 660;
+  color: #dfd4f7;
+  letter-spacing: -0.1px;
+  white-space: nowrap;
+  text-shadow: 0 2px 10px #00000090;
+}
+@keyframes heroArrowFloat {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(7px);
+  }
+}
+@keyframes heroChevronPulse {
+  0%,
+  100% {
+    opacity: 0.28;
+    transform: translateX(-2px);
+  }
+  50% {
+    opacity: 0.95;
+    transform: translateX(3px);
+  }
 }
 .gradient-text {
   background: linear-gradient(100deg, #c79eff 5%, #b392ff 48%, #64e5d6);
@@ -418,12 +516,14 @@ kbd {
     0 0 0 1px #ffffff08 inset;
 }
 .hero-drop-card:hover,
-.hero-drop-card.dragover {
+.hero-drop-card.dragover,
+.hero-drop-card.is-spotlighted {
   border-color: var(--cyan);
   transform: translateY(-2px);
   box-shadow:
     0 24px 60px #00000070,
-    0 0 38px #64e5d624;
+    0 0 42px #64e5d636,
+    0 0 0 1.5px #64e5d650 inset;
 }
 .orb {
   position: absolute;
@@ -1960,6 +2060,39 @@ fieldset {
     grid-template-columns: 1fr;
     gap: 28px;
   }
+  .hero-top-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .hero-arrow-callout {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    margin: 0 0 12px;
+    padding: 8px 14px;
+    border-radius: 14px;
+    background: linear-gradient(120deg, #bc8eff1f, #64e5d61a);
+    border: 1px solid #64e5d652;
+  }
+  .hero-arrow-callout:hover,
+  .hero-arrow-callout:focus-visible {
+    transform: translateY(2px);
+  }
+  .callout-pill {
+    padding: 3px 9px;
+    font-size: 10.5px;
+  }
+  .callout-arrow-svg {
+    width: 48px;
+    height: 26px;
+    transform: rotate(90deg);
+    animation: none;
+    order: 3;
+  }
+  .callout-caption {
+    font-size: 12px;
+  }
   h1 {
     font-size: 46px;
   }
@@ -2067,6 +2200,19 @@ fieldset {
     line-height: 1.12;
     letter-spacing: -1.7px;
     margin-top: 14px;
+  }
+  .hero-arrow-callout {
+    width: 100%;
+    justify-content: space-between;
+    padding: 7px 11px;
+    gap: 6px;
+  }
+  .callout-caption {
+    font-size: 11px;
+  }
+  .callout-arrow-svg {
+    width: 38px;
+    height: 22px;
   }
   .hero-subtitle {
     font-size: 14px;

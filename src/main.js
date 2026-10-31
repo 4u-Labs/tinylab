@@ -293,6 +293,8 @@ const messages = {
   quickCompress: ["Comprimir imagem", "Compress image"],
   quickCutout: ["Remover Fundo IA", "AI Cutout"],
   quickTts: ["Texto → Voz", "Text → Speech"],
+  arrowKicker: ["⚡ Sem procurar ferramenta!", "⚡ No need to search!"],
+  arrowCaption: ["Só envie o arquivo ao lado", "Just drop your file here"],
   smartBadge: [
     "⚡ ATALHO INTELIGENTE · ZERO BUSCA",
     "⚡ SMART SHORTCUT · ZERO SEARCH",
@@ -3129,7 +3131,24 @@ if ($("#searchClear")) {
 }
 if ($("#heroDropzone") && $("#heroFileInput")) {
   const hDrop = $("#heroDropzone"),
-    hInput = $("#heroFileInput");
+    hInput = $("#heroFileInput"),
+    hArrow = $("#heroArrowCallout");
+  if (hArrow) {
+    hArrow.addEventListener("mouseenter", () =>
+      hDrop.classList.add("is-spotlighted"),
+    );
+    hArrow.addEventListener("mouseleave", () =>
+      hDrop.classList.remove("is-spotlighted"),
+    );
+    hArrow.addEventListener("click", () => {
+      if (window.innerWidth <= 1100) {
+        hDrop.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+      hDrop.classList.add("is-spotlighted");
+      setTimeout(() => hDrop.classList.remove("is-spotlighted"), 1400);
+      hInput.click();
+    });
+  }
   hDrop.addEventListener("click", (e) => {
     if (
       e.target.closest("input") ||

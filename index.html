@@ -64,19 +64,19 @@
         }
       }
     </script>
-    <link rel="icon" href="favicon-32x32.png?v=fbd14908b14f" type="image/png" sizes="32x32" />
-    <link rel="icon" href="icon-96.png?v=fbd14908b14f" type="image/png" sizes="96x96" />
-    <link rel="icon" href="favicon.ico?v=fbd14908b14f" sizes="any" />
-    <link rel="apple-touch-icon" href="icon-192.png?v=fbd14908b14f" />
-    <link rel="manifest" href="manifest.json?v=fbd14908b14f" />
-    <link rel="stylesheet" href="style.css?v=fbd14908b14f" />
-    <script type="module" src="assets/main.js?v=fbd14908b14f"></script>
+    <link rel="icon" href="favicon-32x32.png?v=b61f41239b75" type="image/png" sizes="32x32" />
+    <link rel="icon" href="icon-96.png?v=b61f41239b75" type="image/png" sizes="96x96" />
+    <link rel="icon" href="favicon.ico?v=b61f41239b75" sizes="any" />
+    <link rel="apple-touch-icon" href="icon-192.png?v=b61f41239b75" />
+    <link rel="manifest" href="manifest.json?v=b61f41239b75" />
+    <link rel="stylesheet" href="style.css?v=b61f41239b75" />
+    <script type="module" src="assets/main.js?v=b61f41239b75"></script>
   </head>
   <body>
     <a class="skip-link" href="#catalog">Ir às ferramentas / Skip to tools</a>
     <header class="navbar">
       <a class="brand" href="./" aria-label="TinyLab"
-        ><img src="icon-96.png?v=fbd14908b14f" width="43" height="43" alt="" /><span
+        ><img src="icon-96.png?v=b61f41239b75" width="43" height="43" alt="" /><span
           >Tiny<span class="brand-accent">Lab</span
           ><small>BY 4U-LABS</small></span
         ></a
@@ -117,17 +117,120 @@
     <main>
       <section class="hero">
         <div class="hero-copy">
-          <span class="hero-pill"
-            ><span></span>
-            <span data-t="privacy">Seus arquivos ficam com você</span></span
-          >
-          <h1>
-            <span data-t="title">Seu laboratório.</span><br /><span
-              class="gradient-text"
-              data-t="titleAccent"
-              >Infinitas possibilidades.</span
+          <div class="hero-top-row">
+            <div class="hero-title-block">
+              <span class="hero-pill"
+                ><span></span>
+                <span data-t="privacy">Seus arquivos ficam com você</span></span
+              >
+              <h1>
+                <span data-t="title">Seu laboratório.</span><br /><span
+                  class="gradient-text"
+                  data-t="titleAccent"
+                  >Infinitas possibilidades.</span
+                >
+              </h1>
+            </div>
+            <button
+              type="button"
+              class="hero-arrow-callout"
+              id="heroArrowCallout"
+              aria-label="Não procure a ferramenta: envie seu arquivo direto no card ao lado"
             >
-          </h1>
+              <span class="callout-pill" data-t="arrowKicker"
+                >⚡ Sem procurar ferramenta!</span
+              >
+              <svg
+                class="callout-arrow-svg"
+                viewBox="0 0 168 82"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <defs>
+                  <linearGradient
+                    id="heroArrowFill"
+                    x1="18"
+                    y1="41"
+                    x2="156"
+                    y2="41"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop
+                      offset="0%"
+                      stop-color="#8b4acc"
+                      stop-opacity="0.35"
+                    />
+                    <stop offset="45%" stop-color="#bc8eff" />
+                    <stop offset="100%" stop-color="#64e5d6" />
+                  </linearGradient>
+                  <linearGradient
+                    id="heroArrowBorder"
+                    x1="22"
+                    y1="14"
+                    x2="158"
+                    y2="68"
+                    gradientUnits="userSpaceOnUse"
+                  >
+                    <stop offset="0%" stop-color="#e5d0ff" />
+                    <stop offset="55%" stop-color="#bc8eff" />
+                    <stop offset="100%" stop-color="#64e5d6" />
+                  </linearGradient>
+                  <radialGradient
+                    id="heroArrowTipGlow"
+                    cx="0"
+                    cy="0"
+                    r="1"
+                    gradientUnits="userSpaceOnUse"
+                    gradientTransform="translate(148 41) scale(28 28)"
+                  >
+                    <stop
+                      offset="0%"
+                      stop-color="#64e5d6"
+                      stop-opacity="0.65"
+                    />
+                    <stop offset="100%" stop-color="#64e5d6" stop-opacity="0" />
+                  </radialGradient>
+                </defs>
+                <circle cx="146" cy="41" r="26" fill="url(#heroArrowTipGlow)" />
+                <path
+                  class="arrow-chevron arrow-chevron-1"
+                  d="M6 25L20 41L6 57"
+                  stroke="#bc8eff"
+                  stroke-width="3.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  class="arrow-chevron arrow-chevron-2"
+                  d="M18 25L32 41L18 57"
+                  stroke="#64e5d6"
+                  stroke-width="3.2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+                <path
+                  class="arrow-main-shape"
+                  d="M42 26H98V11L154 41L98 71V56H42C37.5817 56 34 52.4183 34 48V34C34 29.5817 37.5817 26 42 26Z"
+                  fill="url(#heroArrowFill)"
+                  stroke="url(#heroArrowBorder)"
+                  stroke-width="2.5"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M46 41H124M124 41L107 28M124 41L107 54"
+                  stroke="#ffffff"
+                  stroke-width="2.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  opacity="0.92"
+                />
+              </svg>
+              <span class="callout-caption" data-t="arrowCaption"
+                >Só envie o arquivo ao lado</span
+              >
+            </button>
+          </div>
           <p class="hero-subtitle" data-t="subtitle">
             PDFs, imagens, vídeos, arquivos e texto. Ferramentas úteis, sem
             anúncios e com processamento no seu dispositivo.
@@ -205,7 +308,7 @@
             <div class="orb orb-two" aria-hidden="true"></div>
             <div class="hero-drop-head">
               <div class="hero-logo">
-                <img src="icon-192.png?v=fbd14908b14f" alt="" width="56" height="56" />
+                <img src="icon-192.png?v=b61f41239b75" alt="" width="56" height="56" />
               </div>
               <div class="hero-head-badges">
                 <span class="smart-badge" data-t="smartBadge"
@@ -375,7 +478,7 @@
     <footer>
       <div class="footer-top">
         <a class="brand" href="./"
-          ><img src="icon-96.png?v=fbd14908b14f" width="32" height="32" alt="" /><span
+          ><img src="icon-96.png?v=b61f41239b75" width="32" height="32" alt="" /><span
             >Tiny<span class="brand-accent">Lab</span></span
           ></a
         >

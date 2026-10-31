@@ -1,4 +1,4 @@
-const CACHE="tinylab-v2-fbd14908b14f";
+const CACHE="tinylab-v2-b61f41239b75";
 const CORE=["./","./index.html","./style.css","./manifest.json","./favicon-32x32.png","./favicon.ico","./icon-96.png","./icon-192.png","./icon-512.png","./assets/main.js","./assets/chunk-UHUT7EOQ.js","./assets/chunk-DGJUBN33.js"];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>Promise.all(CORE.map(u=>fetch(u,{cache:'reload'}).then(r=>r.ok?c.put(u,r):null)))));self.skipWaiting();});
 self.addEventListener('activate',e=>{e.waitUntil((async()=>{for(const key of await caches.keys())if((key.startsWith('tinylab-v2-')||key==='tinylab-cache-v1')&&key!==CACHE)await caches.delete(key);await self.clients.claim();})());});
