@@ -400,7 +400,10 @@ const messages = {
   ],
   cancelled: ["Operação cancelada.", "Operation cancelled."],
   help: ["Como usar", "How to use"],
-  chain: ["Continuar em outra ferramenta", "Continue in another tool"],
+  chain: [
+    "+ Usar este resultado em outra ferramenta",
+    "+ Use this result in another tool",
+  ],
   online: ["Online", "Online"],
   offlineStatus: ["Offline", "Offline"],
   countLabel: ["ferramentas", "tools"],
@@ -2467,6 +2470,9 @@ async function renderResults(all = results) {
     const heading = document.createElement("div");
     heading.className = "result-heading";
     const info = document.createElement("div");
+    const readyBadge = document.createElement("span");
+    readyBadge.className = "result-ready-badge";
+    readyBadge.textContent = L("✓ Pronto para baixar", "✓ Ready to download");
     const title = document.createElement("strong");
     title.textContent = result.name;
     const size = document.createElement("small");
@@ -2478,10 +2484,10 @@ async function renderResults(all = results) {
           ? ` · ${L("redução", "reduction")} ${diff.toFixed(1)}%`
           : ` · ${L("aumento", "increase")} ${Math.abs(diff).toFixed(1)}%`;
     }
-    info.append(title, size);
+    info.append(readyBadge, title, size);
     const btn = document.createElement("button");
     btn.className = "primary small";
-    btn.textContent = t("download");
+    btn.textContent = `⬇ ${t("download")}`;
     btn.onclick = () => download(result);
     heading.append(info, btn);
     article.append(heading);
@@ -2737,28 +2743,48 @@ async function renderResults(all = results) {
           ),
     );
     if (chains.length) {
-      const label = document.createElement("label");
-      label.className = "chain-label";
-      label.textContent = t("chain");
-      const select = document.createElement("select");
-      select.innerHTML =
-        `<option value="">${L("Escolher ferramenta…", "Choose a tool…")}</option>` +
-        chains
-          .map(
-            (tool) =>
-              `<option value="${tool.id}">${esc(tool.title[lang])}</option>`,
-          )
-          .join("");
-      select.onchange = () => {
-        if (select.value)
-          openTool(select.value, {
-            chainFiles: [
-              new File([result.blob], result.name, { type: result.blob.type }),
-            ],
-          });
+      const chainBox = document.createElement("details");
+      chainBox.className = "chain-details";
+      const chainSum = document.createElement("summary");
+      chainSum.className = "chain-summary";
+      chainSum.innerHTML = `<span>${esc(t("chain"))}</span> <small>${L("(opcional)", "(optional)")}</small>`;
+      const chainBody = document.createElement("div");
+      chainBody.className = "chain-body";
+      const sendToTool = (tid) => {
+        if (!tid) return;
+        openTool(tid, {
+          chainFiles: [
+            new File([result.blob], result.name, { type: result.blob.type }),
+          ],
+        });
       };
-      label.append(select);
-      article.append(label);
+      const chipWrap = document.createElement("div");
+      chipWrap.className = "chain-chips";
+      for (const tool of chains.slice(0, 6)) {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "chain-chip";
+        chip.innerHTML = `<span>${esc(toolIcon(tool))}</span> <span>${esc(tool.title[lang])}</span>`;
+        chip.onclick = () => sendToTool(tool.id);
+        chipWrap.append(chip);
+      }
+      chainBody.append(chipWrap);
+      if (chains.length > 6) {
+        const select = document.createElement("select");
+        select.setAttribute("aria-label", t("chain"));
+        select.innerHTML =
+          `<option value="">${L("Mais ferramentas compatíveis…", "More compatible tools…")}</option>` +
+          chains
+            .map(
+              (tool) =>
+                `<option value="${tool.id}">${esc(tool.title[lang])}</option>`,
+            )
+            .join("");
+        select.onchange = () => sendToTool(select.value);
+        chainBody.append(select);
+      }
+      chainBox.append(chainSum, chainBody);
+      article.append(chainBox);
     }
     target.append(article);
   }
