@@ -205,28 +205,81 @@
             <div class="orb orb-two" aria-hidden="true"></div>
             <div class="hero-drop-head">
               <div class="hero-logo">
-                <img src="icon-192.png" alt="" width="68" height="68" />
+                <img src="icon-192.png" alt="" width="56" height="56" />
               </div>
-              <span class="smart-badge" data-t="smartBadge"
-                >⚡ DETECÇÃO INTELIGENTE</span
-              >
+              <div class="hero-head-badges">
+                <span class="smart-badge" data-t="smartBadge"
+                  >⚡ ATALHO INTELIGENTE · ZERO BUSCA</span
+                >
+                <span class="smart-shortcut">Ctrl+V</span>
+              </div>
             </div>
             <h2 class="hero-drop-title" data-t="smartDropTitle">
-              Arraste qualquer arquivo aqui
+              Não procure a ferramenta. Só envie o arquivo.
             </h2>
             <p class="hero-drop-sub" data-t="smartDropSub">
-              Solte um PDF, foto, PSD/TIFF, vídeo, áudio, planilha ou EPUB (ou
-              pressione Ctrl+V) — sugerimos as ferramentas certas na hora.
+              Solte qualquer arquivo aqui e mostramos na hora todas as
+              ferramentas compatíveis para você abrir em 1 clique.
             </p>
-            <div class="hero-format-pills" aria-hidden="true">
-              <span>PDF · EPUB</span>
-              <span>PNG · JPG · WebP · PSD · TIFF</span>
-              <span>MP4 · MP3 · WAV</span>
-              <span>XLSX · CSV · JSON</span>
+            <div class="smart-steps" aria-hidden="true">
+              <span class="smart-step"
+                ><b>1</b> <span data-t="stepOne">Envie o arquivo</span></span
+              >
+              <span class="smart-step-arrow">→</span>
+              <span class="smart-step"
+                ><b>2</b>
+                <span data-t="stepTwo">Detectamos o tipo</span></span
+              >
+              <span class="smart-step-arrow">→</span>
+              <span class="smart-step is-highlight"
+                ><b>3</b>
+                <span data-t="stepThree">Opções na tela!</span></span
+              >
+            </div>
+            <div class="smart-demo" id="smartDemo">
+              <div class="smart-demo-bar">
+                <span class="smart-demo-label" data-t="demoLabel"
+                  >Exemplos do que aparece ao enviar:</span
+                >
+                <div class="smart-demo-tabs" role="tablist">
+                  <button
+                    type="button"
+                    class="demo-tab is-active"
+                    data-demo-kind="pdf"
+                  >
+                    📄 PDF
+                  </button>
+                  <button
+                    type="button"
+                    class="demo-tab"
+                    data-demo-kind="image"
+                  >
+                    🖼 Foto/PSD
+                  </button>
+                  <button
+                    type="button"
+                    class="demo-tab"
+                    data-demo-kind="media"
+                  >
+                    🎬 Vídeo/Áudio
+                  </button>
+                  <button type="button" class="demo-tab" data-demo-kind="data">
+                    📊 Planilha
+                  </button>
+                </div>
+              </div>
+              <div class="smart-demo-stage" id="smartDemoStage"></div>
             </div>
             <div class="hero-drop-cta">
-              <span class="hero-drop-btn" data-t="smartDropBtn"
-                >＋ Escolher arquivo do dispositivo</span
+              <span class="hero-drop-btn">
+                <span class="cta-icon" aria-hidden="true">📂</span>
+                <span data-t="smartDropBtn"
+                  >Escolher arquivo e ver alternativas</span
+                >
+              </span>
+              <small class="hero-drop-hint" data-t="smartDropHint"
+                >ou arraste seu arquivo para cá · aceita múltiplos
+                arquivos</small
               >
             </div>
           </div>

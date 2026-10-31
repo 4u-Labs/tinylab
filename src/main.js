@@ -293,18 +293,32 @@ const messages = {
   quickCompress: ["Comprimir imagem", "Compress image"],
   quickCutout: ["Remover Fundo IA", "AI Cutout"],
   quickTts: ["Texto → Voz", "Text → Speech"],
-  smartBadge: ["⚡ DETECÇÃO INTELIGENTE", "⚡ SMART DETECTION"],
+  smartBadge: [
+    "⚡ ATALHO INTELIGENTE · ZERO BUSCA",
+    "⚡ SMART SHORTCUT · ZERO SEARCH",
+  ],
   smartDropTitle: [
-    "Arraste qualquer arquivo aqui",
-    "Drop any file here",
+    "Não procure a ferramenta. Só envie o arquivo.",
+    "Don't search for a tool. Just drop your file.",
   ],
   smartDropSub: [
-    "Solte um PDF, foto, PSD/TIFF, vídeo, áudio, planilha ou EPUB (ou pressione Ctrl+V) — sugerimos as ferramentas certas na hora.",
-    "Drop a PDF, photo, PSD/TIFF, video, audio, spreadsheet or EPUB (or press Ctrl+V) — we suggest the right tools instantly.",
+    "Solte qualquer arquivo aqui e mostramos na hora todas as ferramentas compatíveis para você abrir em 1 clique.",
+    "Drop any file here and we instantly show every compatible tool ready to open in 1 click.",
+  ],
+  stepOne: ["Envie o arquivo", "Drop your file"],
+  stepTwo: ["Detectamos o tipo", "We detect format"],
+  stepThree: ["Opções na tela!", "Tools appear!"],
+  demoLabel: [
+    "Exemplos do que aparece ao enviar:",
+    "Examples of what appears on drop:",
   ],
   smartDropBtn: [
-    "＋ Escolher arquivo do dispositivo",
-    "＋ Choose file from device",
+    "Escolher arquivo e ver alternativas",
+    "Choose file & see compatible tools",
+  ],
+  smartDropHint: [
+    "ou arraste seu arquivo para cá · aceita múltiplos arquivos",
+    "or drag & drop your file here · multiple files supported",
   ],
   featuredEyebrow: ["DESTAQUES DO LABORATÓRIO", "LAB HIGHLIGHTS"],
   featuredTitle: ["Ferramentas mais usadas", "Most popular tools"],
@@ -478,8 +492,77 @@ function translate() {
     b.setAttribute("aria-pressed", String(b.dataset.layout === layout));
   });
   renderCatalog();
+  renderSmartDemo();
   if (heroFiles.length) renderHeroDropMatched();
   updateNetwork();
+}
+let demoKind = "pdf",
+  demoTimer = null;
+const smartDemoSamples = {
+  pdf: {
+    file: ["📄 contrato-assinado.pdf", "📄 signed-contract.pdf"],
+    size: "1.4 MB",
+    tools: [
+      "compress-pdf",
+      "pdf-to-word",
+      "pdf-to-pptx",
+      "edit-pdf-text",
+      "sign-pdf",
+      "merge-pdf",
+    ],
+  },
+  image: {
+    file: ["🖼 arte-produto.psd / .jpg", "🖼 product-art.psd / .jpg"],
+    size: "3.2 MB",
+    tools: [
+      "ai-remove-bg",
+      "pro-image-converter",
+      "image-palette",
+      "sticker-maker",
+      "compress-image",
+      "ocr-image",
+    ],
+  },
+  media: {
+    file: ["🎬 video-aula.mp4 / .mp3", "🎬 lesson-video.mp4 / .mp3"],
+    size: "24 MB",
+    tools: [
+      "trim-video",
+      "burn-subtitles",
+      "transcribe",
+      "add-audio-video",
+      "video-to-gif",
+      "denoise-audio",
+    ],
+  },
+  data: {
+    file: ["📊 planilha-vendas.xlsx / .epub", "📊 sales-sheet.xlsx / .epub"],
+    size: "640 KB",
+    tools: [
+      "excel-to-pdf",
+      "excel-to-csv",
+      "epub-pdf",
+      "csv-to-excel",
+      "json-to-excel",
+      "extract-zip",
+    ],
+  },
+};
+function renderSmartDemo() {
+  const stage = $("#smartDemoStage");
+  if (!stage) return;
+  const sample = smartDemoSamples[demoKind] || smartDemoSamples.pdf;
+  document.querySelectorAll("[data-demo-kind]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset.demoKind === demoKind);
+  });
+  stage.innerHTML = `<div class="demo-file-row"><span class="demo-file-pill">${esc(sample.file[lang === "pt" ? 0 : 1])} <small>${sample.size}</small></span><span class="demo-unlocks">⚡ ${L("libera na hora:", "instantly unlocks:")}</span></div><div class="demo-chips">${sample.tools
+    .map((id) => {
+      const tool = findTool(id);
+      return tool
+        ? `<button type="button" class="demo-chip ${tool.category}" data-tool="${tool.id}"><i>${toolIcon(tool)}</i><span>${esc(tool.title[lang])}</span></button>`
+        : "";
+    })
+    .join("")}</div>`;
 }
 function renderFeatured() {
   const sec = $("#featuredSection");
@@ -608,12 +691,15 @@ function filesForTool(tool, incoming) {
 }
 function renderHeroDropMatched() {
   const box = $("#heroDropMatched");
+  const demo = $("#smartDemo");
   if (!box) return;
   if (!heroFiles.length) {
     box.hidden = true;
     box.innerHTML = "";
+    if (demo) demo.hidden = false;
     return;
   }
+  if (demo) demo.hidden = true;
   const recs = recommendToolsForFiles(heroFiles);
   const totalBytes = heroFiles.reduce((s, f) => s + (f.size || 0), 0);
   const first = heroFiles[0];
@@ -622,9 +708,9 @@ function renderHeroDropMatched() {
       ? `${first.name} +${heroFiles.length - 1}`
       : first.name;
   box.hidden = false;
-  box.innerHTML = `<div class="matched-head"><div class="matched-file"><span aria-hidden="true">📄</span><strong>${esc(label)}</strong><small>${humanBytes(totalBytes)}</small></div><button type="button" class="matched-close" id="heroDropClear" aria-label="${t("close")}">×</button></div>${
+  box.innerHTML = `<div class="matched-head"><div class="matched-file"><span class="matched-check" aria-hidden="true">✓</span><strong>${esc(label)}</strong><small>${humanBytes(totalBytes)}</small></div><button type="button" class="matched-close" id="heroDropClear" aria-label="${t("close")}">×</button></div>${
     recs.length
-      ? `<p class="matched-sub">${L("Ferramentas compatíveis com seu arquivo — clique para abrir já carregado:", "Compatible tools for your file — click to open preloaded:")}</p><div class="matched-grid">${recs.map((tool) => `<button type="button" class="matched-tool ${tool.category}" data-hero-open="${tool.id}"><span class="tool-icon" aria-hidden="true">${toolIcon(tool)}</span><span>${esc(tool.title[lang])}</span></button>`).join("")}</div>`
+      ? `<p class="matched-sub">⚡ ${L(`${recs.length} alternativas prontas para seu arquivo — clique em uma para abrir já carregado:`, `${recs.length} tools ready for your file — click any to open preloaded:`)}</p><div class="matched-grid">${recs.map((tool) => `<button type="button" class="matched-tool ${tool.category}" data-hero-open="${tool.id}"><span class="tool-icon" aria-hidden="true">${toolIcon(tool)}</span><span>${esc(tool.title[lang])}</span></button>`).join("")}</div>`
       : `<p class="matched-sub">${L("Nenhuma ferramenta compatível com este arquivo (vazio ou formato não suportado).", "No compatible tool for this file (empty or unsupported format).")}</p>`
   }`;
 }
@@ -3007,6 +3093,14 @@ document.addEventListener("click", (e) => {
     save("layout", layout);
     translate();
   }
+  const demoTab = e.target.closest("[data-demo-kind]");
+  if (demoTab) {
+    e.stopPropagation();
+    demoKind = demoTab.dataset.demoKind;
+    clearInterval(demoTimer);
+    renderSmartDemo();
+    return;
+  }
   const heroOpen = e.target.closest("[data-hero-open]");
   if (heroOpen && heroFiles.length) {
     const target = findTool(heroOpen.dataset.heroOpen);
@@ -3037,9 +3131,21 @@ if ($("#heroDropzone") && $("#heroFileInput")) {
   const hDrop = $("#heroDropzone"),
     hInput = $("#heroFileInput");
   hDrop.addEventListener("click", (e) => {
-    if (e.target.closest("input")) return;
+    if (
+      e.target.closest("input") ||
+      e.target.closest("[data-demo-kind]") ||
+      e.target.closest("[data-tool]")
+    )
+      return;
     hInput.click();
   });
+  const demoOrder = ["pdf", "image", "media", "data"];
+  demoTimer = setInterval(() => {
+    if (heroFiles.length || dialog.open || hDrop.matches(":hover, :focus-within"))
+      return;
+    demoKind = demoOrder[(demoOrder.indexOf(demoKind) + 1) % demoOrder.length];
+    renderSmartDemo();
+  }, 3800);
   hDrop.addEventListener("keydown", (e) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
