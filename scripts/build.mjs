@@ -208,7 +208,13 @@ const assets = [
   "./THIRD_PARTY_NOTICES.md",
 ];
 const hash = createHash("sha256");
-for (const p of [...(await walk("src")), "style.css", "index.html"])
+for (const p of [
+  ...(await walk("src")),
+  "style.css",
+  "index.html",
+  "icon-192.png",
+  "og-banner.jpg",
+])
   hash.update(await readFile(p));
 const cache = "tinylab-v2-" + hash.digest("hex").slice(0, 12);
 const core = [
