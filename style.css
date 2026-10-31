@@ -1830,9 +1830,12 @@ fieldset {
   color: #bdb1cc;
 }
 .primary.small {
-  min-height: 34px;
-  font-size: 11px;
-  padding: 8px 12px;
+  min-height: 36px;
+  font-size: 12px;
+  padding: 8px 14px;
+  gap: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 .danger {
   color: #ffb0b0;
@@ -1916,13 +1919,16 @@ fieldset {
 }
 .result-heading > div {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
 }
 .result-ready-badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   padding: 2px 8px;
-  margin-bottom: 5px;
   border-radius: 999px;
   background: #64e5d61f;
   border: 1px solid #64e5d64d;
@@ -2005,7 +2011,9 @@ fieldset {
     background 0.16s,
     color 0.16s;
 }
-.chain-summary::-webkit-details-marker {
+.chain-summary::-webkit-details-marker,
+.chain-summary::marker {
+  content: "";
   display: none;
 }
 .chain-summary:hover,
