@@ -1686,6 +1686,7 @@ dialog::backdrop {
 .workspace-input {
   padding: 25px;
   border-right: 1px solid var(--line);
+  min-width: 0;
 }
 .workspace-output {
   padding: 25px;
@@ -1916,7 +1917,6 @@ fieldset {
 .result-heading > div {
   min-width: 0;
 }
-.result-heading strong {
 .result-ready-badge {
   display: inline-flex;
   align-items: center;
@@ -1950,6 +1950,12 @@ fieldset {
   display: block;
   margin: auto;
   border-radius: 7px;
+}
+.input-preview > img,
+.input-preview > canvas {
+  max-height: 260px;
+  width: auto;
+  object-fit: contain;
 }
 .result > img {
   max-height: 400px;
