@@ -83,172 +83,176 @@ const icons = {
 const specificIcons = {
   "merge-pdf": "⊞",
   "split-pdf": "✂",
-  "reorder-pdf": "⇄",
+  "split-all-pdf": "⫽",
+  "organize-pdf": "⇄",
+  "delete-pages": "⌫",
   "rotate-pdf": "↻",
-  "delete-pdf-pages": "⌫",
-  "extract-pdf-pages": "❐",
-  "compress-pdf": "⤡",
-  "pdf-to-images": "▣",
-  "images-to-pdf": "▤",
-  "pdf-to-text": "¶",
-  "pdf-to-word": "W",
-  "word-to-pdf": "▤",
-  "pdf-to-excel": "⊞",
-  "excel-to-pdf": "▤",
-  "pdf-to-pptx": "▣",
-  "pptx-to-pdf": "▤",
-  "html-to-pdf": "⟨⟩",
   "watermark-pdf": "◈",
-  "page-numbers-pdf": "№",
+  "number-pdf": "№",
+  "images-to-pdf": "▤",
+  "pdf-to-images": "▣",
+  "pdf-to-text": "¶",
+  "pdf-extract-images": "🖼",
+  "compress-pdf": "⤡",
+  "annotate-pdf": "✎",
+  "sign-pdf": "✒",
+  "fill-pdf": "☑",
   "protect-pdf": "🔒",
   "unlock-pdf": "🔓",
-  "sign-pdf": "✒",
-  "annotate-pdf": "✎",
-  "redact-pdf": "■",
-  "edit-pdf": "✎",
-  "grayscale-pdf": "◐",
-  "compare-pdf": "⇄",
-  "epub-pdf": "📖",
-  "crop-pdf": "◰",
-  "flatten-pdf": "⧉",
-  "fill-pdf": "☑",
-  "repair-pdf": "🛠",
-  "pdf-metadata": "ℹ",
   "ocr-pdf": "⌖",
-  "convert-image": "⇄",
+  "pdf-to-word": "W",
+  "word-to-pdf": "⇢",
+  "office-to-pdf": "⧉",
+  "text-to-pdf": "T",
+  "crop-pdf": "◰",
+  "pdf-to-excel": "X",
+  "flatten-pdf": "▭",
+  "redact-pdf": "■",
+  "nup-pdf": "⊟",
+  "markdown-to-pdf": "M↓",
+  "pdf-metadata": "ℹ",
+  "pdf-to-pptx": "P",
+  "edit-pdf-text": "✍",
+  "grayscale-pdf": "◐",
+  "compare-pdf": "⇆",
+  "epub-pdf": "📖",
   "compress-image": "⤡",
+  "convert-image": "⇄",
   "resize-image": "⤢",
   "crop-image": "◰",
   "rotate-image": "↻",
+  "flip-image": "⇋",
   "remove-bg": "◌",
-  "ai-remove-bg": "✦",
+  "image-text": "T",
+  "watermark-image": "©",
+  "border-image": "▣",
+  "round-image": "●",
+  "collage-image": "⊞",
+  "adjust-image": "◐",
+  "pixelate-image": "▦",
+  "blur-image": "◎",
+  "upscale-image": "⤢",
+  "heic-to-jpg": "📱",
+  "svg-to-png": "◇",
+  "favicon-maker": "★",
+  "image-metadata": "ℹ",
+  "strip-metadata": "🛡",
   "blur-bg": "◎",
   "remove-object": "⌫",
-  "watermark-image": "©",
-  "meme-generator": "☺",
-  "meme-mockup": "▣",
-  "collage-maker": "⊞",
-  "image-splitter": "⊞",
-  "color-adjust": "◐",
-  "image-filters": "✧",
-  "pixelate-image": "▦",
-  "round-corners": "▢",
-  "add-border": "▣",
-  "heic-converter": "⇄",
-  "svg-to-png": "◇",
-  "favicon-generator": "★",
-  "exif-reader": "ℹ",
-  "strip-exif": "🛡",
-  "ocr-image": "⌖",
-  "pro-image-converter": "◈",
-  "palette-extractor": "🎨",
+  "image-to-svg": "✦",
+  "split-image": "⊟",
+  "pfp-maker": "☺",
+  "meme-mockup": "😂",
+  "pro-image-converter": "PSD",
+  "image-palette": "🎨",
   "colorize-image": "🌈",
-  "sticker-maker": "☺",
-  "oneclick-studio": "✨",
-  "trim-video": "✂",
-  "compress-video": "⤡",
-  "convert-video": "⇄",
-  "video-to-gif": "GIF",
+  "sticker-maker": "🏷",
+  "screen-recorder": "◉",
   "extract-audio": "♪",
-  "mute-video": "🔇",
-  "video-speed": "⏩",
+  "convert-video": "⇄",
+  "compress-video": "⤡",
+  "trim-video": "✂",
   "resize-video": "⤢",
-  "rotate-video": "↻",
-  "merge-videos": "⊞",
+  "mute-video": "🔇",
+  "video-to-gif": "GIF",
+  "gif-to-video": "▶",
+  "video-frames": "▣",
+  "convert-audio": "♫",
+  "trim-audio": "✂",
+  "merge-audio": "⊞",
+  "normalize-audio": "≈",
   "subtitles-video": "CC",
   "burn-subtitles": "🔥",
-  "video-frames": "▣",
-  "trim-audio": "✂",
-  "convert-audio": "♪",
-  "merge-audio": "⊞",
-  "audio-speed": "⏩",
-  "normalize-audio": "≈",
-  "screen-recorder": "◉",
+  "merge-video": "⊞",
+  "crop-video": "▯",
+  "speed-media": "⏩",
   "voice-recorder": "🎙",
   "text-to-speech": "🔊",
-  "add-audio-to-video": "♪",
+  "add-audio-video": "🎵",
   "reverse-video": "⏪",
-  "denoise-audio": "🎙",
-  "clipcut-editor": "✂",
-  "baixou-media": "⬇",
-  "csv-to-json": "⇄",
-  "json-to-csv": "⇄",
-  "excel-to-csv": "⊞",
+  "denoise-audio": "🎧",
+  "clipcut-studio": "🎬",
+  "baixou-downloader": "⬇",
   "csv-to-excel": "⊞",
-  "json-formatter": "{ }",
+  "excel-to-csv": "⇄",
+  "csv-to-json": "{ }",
+  "json-to-csv": "CSV",
+  "json-to-excel": "X",
   "xml-to-json": "⟨⟩",
-  "yaml-to-json": "≡",
-  "sql-formatter": "SQL",
-  "csv-cleaner": "✦",
-  "zip-creator": "🗜",
-  "zip-extractor": "📂",
-  "file-hash": "#",
+  "json-to-xml": "⟨/⟩",
+  "xml-to-excel": "X",
+  "excel-to-json": "{ }",
+  "excel-to-xml": "⟨⟩",
+  "split-csv": "⫽",
+  "split-excel": "⫽",
+  "excel-to-pdf": "▤",
+  "create-zip": "🗜",
+  "extract-zip": "📂",
   "word-counter": "№",
-  "case-converter": "Aa",
-  "remove-accents": "Ä",
-  "slug-generator": "🔗",
-  "sort-lines": "⇅",
-  "text-diff": "⇄",
-  "find-replace": "⌕",
-  "markdown-html": "M↓",
-  "lorem-ipsum": "¶",
-  "whatsapp-formatter": "💬",
-  "whatsapp-link": "📲",
-  "pomodoro-timer": "⏱",
-  "qr-code-generator": "⊞",
-  "qr-code-studio": "⊞",
+  "clean-text": "✧",
+  "case-text": "Aa",
+  "dedupe-text": "≠",
+  "sort-text": "⇅",
+  "compare-text": "⇆",
+  "markdown-preview": "M↓",
+  "text-replace": "⌕",
+  "qr-code-studio": "▦",
   "qr-scanner": "📷",
   "barcode-generator": "|||",
-  "password-generator": "🔑",
-  "uuid-generator": "ID",
-  "base64-codec": "64",
-  "url-encoder": "%",
   "jwt-decoder": "JWT",
   "regex-tester": ".*",
-  "cron-parser": "⏲",
+  "password-generator": "🔑",
+  "hash-crypto": "#",
+  "file-hash": "#",
+  "json-formatter": "{ }",
+  "base64": "64",
+  "url-codec": "%",
+  timestamp: "🕒",
+  uuid: "ID",
+  "lorem-ipsum": "¶",
   "color-converter": "🎨",
-  "timestamp-converter": "🕒",
-  "html-minifier": "⟨/⟩",
-  "css-minifier": "{ }",
-  "js-minifier": "JS",
-  "ai-summarize": "✦",
-  "ai-rewrite": "✎",
-  "ai-translate": "🌐",
-  "ai-grammar": "✓",
-  "ai-bullets": "•",
-  "ai-titles": "H1",
-  "ai-email": "✉",
-  "ai-social": "📣",
-  "ai-alt-text": "🖼",
-  "ai-upscale": "⤢",
+  "ocr-image": "⌖",
+  "ai-remove-bg": "✦",
   transcribe: "🎙",
+  summarize: "≡",
+  translate: "🌐",
+  proofread: "✓",
+  rewrite: "✎",
+  "ai-caption": "📣",
+  "summarize-pdf": "📑",
+  "ai-upscale": "⤢",
+  "ai-email": "✉",
+  "ai-article": "📝",
+  "ai-product": "🛍",
+  "ai-youtube": "▶",
+  "ai-faq": "❓",
   "ai-resume": "📄",
   "ai-brand": "💡",
-  "ai-policy": "⚖",
-  "ai-video-summary": "▶",
-  "ai-code-explain": "⟨/⟩",
+  "ai-legal": "⚖",
+  "ai-transcript-summary": "🗒",
+  "ai-code": "⟨/⟩",
 };
 const toolIcon = (tool) =>
   specificIcons[tool?.id] || icons[tool?.category] || "✦";
 const newToolIds = new Set([
   "pdf-to-pptx",
-  "edit-pdf",
+  "edit-pdf-text",
   "grayscale-pdf",
   "compare-pdf",
   "epub-pdf",
   "pro-image-converter",
-  "palette-extractor",
+  "image-palette",
   "colorize-image",
   "sticker-maker",
   "text-to-speech",
-  "add-audio-to-video",
+  "add-audio-video",
   "reverse-video",
   "denoise-audio",
   "ai-resume",
   "ai-brand",
-  "ai-policy",
-  "ai-video-summary",
-  "ai-code-explain",
+  "ai-legal",
+  "ai-transcript-summary",
+  "ai-code",
 ]);
 const popularToolIds = new Set([
   "merge-pdf",
@@ -473,7 +477,6 @@ function translate() {
   document.querySelectorAll("[data-layout]").forEach((b) => {
     b.setAttribute("aria-pressed", String(b.dataset.layout === layout));
   });
-  renderFeatured();
   renderCatalog();
   if (heroFiles.length) renderHeroDropMatched();
   updateNetwork();
@@ -504,7 +507,7 @@ function cardHtml(tool) {
       : tool.model
         ? L("Modelo local", "Local model")
         : L("No navegador", "In browser");
-  return `<article class="tool-card ${tool.category}"><div class="card-top"><span class="tool-icon">${toolIcon(tool)}</span><div class="card-top-right">${toolBadge(tool)}<button class="favorite ${isFav ? "saved" : ""}" data-favorite="${tool.id}" aria-label="${L("Favoritar", "Favorite")} ${esc(tool.title[lang])}" aria-pressed="${isFav}">${isFav ? "★" : "☆"}</button></div></div><span class="card-category">${esc(catLabel)}</span><h3><a href="${esc(toolHref(tool))}" data-tool="${tool.id}" ${tool.external ? 'target="_blank" rel="noopener noreferrer"' : ""}>${esc(tool.title[lang])}</a></h3><p>${esc(tool.description[lang])}</p><div class="card-bottom"><span class="local-badge">${runBadge}</span><a class="card-open" href="${esc(toolHref(tool))}" data-tool="${tool.id}" ${tool.external ? 'target="_blank" rel="noopener noreferrer"' : ""} aria-label="${t("open")} ${esc(tool.title[lang])}">↗</a></div></article>`;
+  return `<article class="tool-card ${tool.category}"><div class="card-top"><span class="tool-icon">${toolIcon(tool)}</span><div class="card-top-right">${toolBadge(tool)}<button class="favorite ${isFav ? "saved" : ""}" data-favorite="${tool.id}" aria-label="${L("Favoritar", "Favorite")} ${esc(tool.title[lang])}" aria-pressed="${isFav}">${isFav ? "★" : "☆"}</button></div></div><span class="card-category">${esc(catLabel)}</span><h3><a href="${esc(toolHref(tool))}" data-tool="${tool.id}" ${tool.external ? 'target="_blank" rel="noopener noreferrer"' : ""}>${esc(tool.title[lang])}</a></h3><p>${esc(tool.description[lang])}</p><div class="card-bottom"><span class="local-badge">${runBadge}</span><a class="card-open" href="${esc(toolHref(tool))}" data-tool="${tool.id}" ${tool.external ? 'target="_blank" rel="noopener noreferrer"' : ""} tabindex="-1" aria-hidden="true">↗</a></div></article>`;
 }
 function renderCatalog() {
   if ($("#searchClear")) $("#searchClear").hidden = !query.length;
@@ -547,91 +550,61 @@ function recommendToolsForFiles(incoming) {
   if (!first) return [];
   const name = (first.name || "").toLowerCase();
   const type = (first.type || "").toLowerCase();
+  const isPdf = type === "application/pdf" || name.endsWith(".pdf");
   let ids;
-  if (type === "application/pdf" || name.endsWith(".pdf")) {
+  if (isPdf) {
     ids =
       incoming.length > 1
-        ? [
-            "merge-pdf",
-            "compare-pdf",
-            "compress-pdf",
-            "pdf-to-word",
-            "pdf-to-pptx",
-            "edit-pdf",
-            "sign-pdf",
-            "split-pdf",
-          ]
-        : [
-            "compress-pdf",
-            "pdf-to-word",
-            "pdf-to-pptx",
-            "edit-pdf",
-            "sign-pdf",
-            "merge-pdf",
-            "split-pdf",
-            "grayscale-pdf",
-          ];
+        ? ["merge-pdf", "compare-pdf", "compress-pdf", "pdf-to-word", "pdf-to-pptx", "edit-pdf-text", "sign-pdf", "split-pdf"]
+        : ["compress-pdf", "pdf-to-word", "pdf-to-pptx", "edit-pdf-text", "sign-pdf", "split-pdf", "grayscale-pdf", "summarize-pdf"];
   } else if (name.endsWith(".epub") || type.includes("epub")) {
-    ids = ["epub-pdf", "file-hash", "zip-creator"];
-  } else if (/\.(psd|tiff?|bmp|ico)$/i.test(name)) {
-    ids = [
-      "pro-image-converter",
-      "palette-extractor",
-      "compress-image",
-      "resize-image",
-      "watermark-image",
-    ];
-  } else if (/\.(heic|heif)$/i.test(name)) {
-    ids = ["heic-converter", "compress-image", "resize-image"];
+    ids = ["epub-pdf", "file-hash", "create-zip"];
+  } else if (/\.(psd|tiff?|bmp|ico|cur)$/.test(name)) {
+    ids = ["pro-image-converter", "image-palette", "compress-image", "resize-image", "convert-image", "watermark-image"];
+  } else if (/\.(heic|heif)$/.test(name)) {
+    ids = ["heic-to-jpg", "compress-image", "resize-image", "images-to-pdf"];
   } else if (name.endsWith(".svg") || type === "image/svg+xml") {
-    ids = ["svg-to-png", "favicon-generator", "compress-image"];
-  } else if (type.startsWith("image/") || /\.(png|jpe?g|webp|gif|avif)$/i.test(name)) {
-    ids = [
-      "ai-remove-bg",
-      "remove-bg",
-      "compress-image",
-      "resize-image",
-      "palette-extractor",
-      "sticker-maker",
-      "colorize-image",
-      "ocr-image",
-    ];
-  } else if (type.startsWith("video/") || /\.(mp4|mov|webm|mkv|avi)$/i.test(name)) {
-    ids = [
-      "trim-video",
-      "compress-video",
-      "burn-subtitles",
-      "add-audio-to-video",
-      "video-to-gif",
-      "extract-audio",
-      "reverse-video",
-      "transcribe",
-    ];
-  } else if (type.startsWith("audio/") || /\.(mp3|wav|m4a|ogg|flac|aac)$/i.test(name)) {
-    ids = [
-      "trim-audio",
-      "denoise-audio",
-      "transcribe",
-      "convert-audio",
-      "normalize-audio",
-      "merge-audio",
-    ];
-  } else if (/\.(docx?|odt|rtf)$/i.test(name)) {
-    ids = ["word-to-pdf", "file-hash", "zip-creator"];
-  } else if (/\.(xlsx?|ods)$/i.test(name)) {
-    ids = ["excel-to-pdf", "excel-to-csv", "file-hash"];
-  } else if (/\.(pptx?|odp)$/i.test(name)) {
-    ids = ["pptx-to-pdf", "file-hash"];
+    ids = ["svg-to-png", "file-hash", "create-zip"];
+  } else if (name.endsWith(".gif") || type === "image/gif") {
+    ids = ["gif-to-video", "compress-image", "convert-image", "resize-image"];
+  } else if (type.startsWith("image/") || /\.(png|jpe?g|webp|avif)$/.test(name)) {
+    ids = ["ai-remove-bg", "remove-bg", "compress-image", "resize-image", "image-palette", "sticker-maker", "colorize-image", "ocr-image"];
+  } else if (type.startsWith("video/") || /\.(mp4|mov|webm|mkv|avi)$/.test(name)) {
+    ids = ["trim-video", "compress-video", "burn-subtitles", "add-audio-video", "video-to-gif", "extract-audio", "reverse-video", "transcribe"];
+  } else if (type.startsWith("audio/") || /\.(mp3|wav|m4a|ogg|flac|aac)$/.test(name)) {
+    ids = ["trim-audio", "denoise-audio", "transcribe", "convert-audio", "normalize-audio", "merge-audio"];
+  } else if (/\.(docx?|odt)$/.test(name)) {
+    ids = ["word-to-pdf", "office-to-pdf", "file-hash"];
+  } else if (/\.(xlsx?|ods)$/.test(name)) {
+    ids = ["excel-to-pdf", "excel-to-csv", "excel-to-json", "split-excel", "excel-to-xml"];
+  } else if (/\.(pptx?|odp)$/.test(name)) {
+    ids = ["office-to-pdf", "file-hash"];
   } else if (name.endsWith(".csv") || type === "text/csv") {
-    ids = ["csv-to-excel", "csv-to-json", "csv-cleaner"];
+    ids = ["csv-to-excel", "csv-to-json", "split-csv", "excel-to-pdf"];
   } else if (name.endsWith(".json") || type.includes("json")) {
-    ids = ["json-formatter", "json-to-csv", "file-hash"];
+    ids = ["json-to-excel", "json-to-csv", "json-to-xml", "file-hash"];
+  } else if (name.endsWith(".xml") || type.includes("xml")) {
+    ids = ["xml-to-json", "xml-to-excel", "file-hash"];
   } else if (name.endsWith(".zip") || type.includes("zip")) {
-    ids = ["zip-extractor", "file-hash"];
+    ids = ["extract-zip", "file-hash"];
   } else {
-    ids = ["file-hash", "zip-creator", "base64-codec"];
+    ids = ["file-hash", "create-zip"];
   }
-  return ids.map((id) => findTool(id)).filter(Boolean);
+  // Only keep internal tools that really accept this file (guards against catalog drift).
+  return ids
+    .map((id) => findTool(id))
+    .filter((tool) => {
+      if (!tool || tool.external || tool.input !== "files") return false;
+      try {
+        validFiles(tool, [first]);
+        return true;
+      } catch {
+        return false;
+      }
+    });
+}
+function filesForTool(tool, incoming) {
+  return tool?.multiple ? [...incoming] : incoming.slice(0, 1);
 }
 function renderHeroDropMatched() {
   const box = $("#heroDropMatched");
@@ -649,7 +622,17 @@ function renderHeroDropMatched() {
       ? `${first.name} +${heroFiles.length - 1}`
       : first.name;
   box.hidden = false;
-  box.innerHTML = `<div class="matched-head"><div class="matched-file"><span>📄</span><strong>${esc(label)}</strong><small>${humanBytes(totalBytes)}</small></div><button type="button" class="matched-close" id="heroDropClear" aria-label="${t("close")}">×</button></div><p class="matched-sub">${L("Ferramentas compatíveis com seu arquivo — clique para abrir já carregado:", "Compatible tools for your file — click to open preloaded:")}</p><div class="matched-grid">${recs.map((tool) => `<button type="button" class="matched-tool ${tool.category}" data-hero-open="${tool.id}"><span class="tool-icon">${toolIcon(tool)}</span><span>${esc(tool.title[lang])}</span></button>`).join("")}</div>`;
+  box.innerHTML = `<div class="matched-head"><div class="matched-file"><span aria-hidden="true">📄</span><strong>${esc(label)}</strong><small>${humanBytes(totalBytes)}</small></div><button type="button" class="matched-close" id="heroDropClear" aria-label="${t("close")}">×</button></div>${
+    recs.length
+      ? `<p class="matched-sub">${L("Ferramentas compatíveis com seu arquivo — clique para abrir já carregado:", "Compatible tools for your file — click to open preloaded:")}</p><div class="matched-grid">${recs.map((tool) => `<button type="button" class="matched-tool ${tool.category}" data-hero-open="${tool.id}"><span class="tool-icon" aria-hidden="true">${toolIcon(tool)}</span><span>${esc(tool.title[lang])}</span></button>`).join("")}</div>`
+      : `<p class="matched-sub">${L("Nenhuma ferramenta compatível com este arquivo (vazio ou formato não suportado).", "No compatible tool for this file (empty or unsupported format).")}</p>`
+  }`;
+}
+function setHeroFiles(incoming) {
+  heroFiles = incoming.filter((f) => f && f.size);
+  renderHeroDropMatched();
+  if (heroFiles.length)
+    $("#heroDropMatched")?.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 function field(o) {
   const id = "option-" + o.key,
@@ -841,28 +824,15 @@ function openTool(id, { chainFiles = [], content = "", fromPaste = false } = {})
       : tool.category === "image"
         ? `<div class="ecosystem-shortcuts"><span>${L("App irmão 4u-Labs:", "4u-Labs sister app:")}</span><a href="https://4u.ia.br/app/oneclick/" target="_blank" rel="noopener noreferrer">✨ OneClick AI (${L("Estúdio Fotográfico IA", "AI Photo Studio")}) ↗</a></div>`
         : "";
-  const pasteQuickTools =
-    fromPaste && chainFiles[0]?.type?.startsWith("image/")
-      ? [
-          ["remove-bg", L("Remover Fundo", "Remove BG")],
-          ["ai-remove-bg", L("Fundo IA", "AI Cutout")],
-          ["meme-mockup", L("Mockup de Print", "Screenshot Mockup")],
-          ["remove-object", L("Apagar Objeto", "Remove Object")],
-          ["crop-image", L("Recortar", "Crop")],
-          ["ocr-image", L("Extrair Texto", "OCR")],
-          ["qr-scanner", L("Ler QR / Barras", "Scan QR")],
-        ]
-      : fromPaste && /\.pdf$/i.test(chainFiles[0]?.name || "")
-        ? [
-            ["compress-pdf", L("Comprimir PDF", "Compress PDF")],
-            ["sign-pdf", L("Assinar PDF", "Sign PDF")],
-            ["redact-pdf", L("Tarjar PDF", "Redact PDF")],
-            ["pdf-to-word", L("PDF → Word", "PDF → Word")],
-            ["pdf-to-excel", L("PDF → Excel", "PDF → Excel")],
-          ]
-        : [];
+  const pasteQuickTools = fromPaste && chainFiles.length
+    ? (() => {
+        const recs = recommendToolsForFiles(chainFiles);
+        if (!recs.some((r) => r.id === tool.id)) recs.unshift(tool);
+        return recs.slice(0, 8).map((r) => [r.id, r.title[lang]]);
+      })()
+    : [];
   const pasteBar = pasteQuickTools.length
-    ? `<div class="paste-switch-bar"><span>⚡ ${L("Colado com Ctrl+V — trocar ação:", "Pasted via Ctrl+V — switch tool:")}</span><div class="paste-chips">${pasteQuickTools.map(([tid, lbl]) => `<button type="button" class="secondary small ${tid === tool.id ? "is-active" : ""}" data-paste-switch="${tid}">${esc(lbl)}</button>`).join("")}</div></div>`
+    ? `<div class="paste-switch-bar"><span>⚡ ${L("Arquivo carregado — trocar ação:", "File loaded — switch tool:")}</span><div class="paste-chips">${pasteQuickTools.map(([tid, lbl]) => `<button type="button" class="secondary small ${tid === tool.id ? "is-active" : ""}" data-paste-switch="${tid}">${esc(lbl)}</button>`).join("")}</div></div>`
     : "";
   const extraControls =
     tool.id === "qr-scanner"
@@ -882,7 +852,10 @@ function openTool(id, { chainFiles = [], content = "", fromPaste = false } = {})
     .forEach((btn) => {
       btn.onclick = () =>
         openTool(btn.dataset.pasteSwitch, {
-          chainFiles: files.length ? [...files] : chainFiles,
+          chainFiles: filesForTool(
+            findTool(btn.dataset.pasteSwitch),
+            chainFiles.length ? chainFiles : files,
+          ),
           fromPaste: true,
         });
     });
@@ -3015,7 +2988,7 @@ document.addEventListener("click", (e) => {
     category = cat.dataset.category;
     translate();
     if (cat.classList.contains("section-more")) {
-      $("#commandBar")?.scrollIntoView({
+      $(".discovery")?.scrollIntoView({
         behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
           ? "auto"
           : "smooth",
@@ -3036,8 +3009,9 @@ document.addEventListener("click", (e) => {
   }
   const heroOpen = e.target.closest("[data-hero-open]");
   if (heroOpen && heroFiles.length) {
+    const target = findTool(heroOpen.dataset.heroOpen);
     openTool(heroOpen.dataset.heroOpen, {
-      chainFiles: [...heroFiles],
+      chainFiles: filesForTool(target, heroFiles),
       fromPaste: true,
     });
   }
@@ -3074,9 +3048,8 @@ if ($("#heroDropzone") && $("#heroFileInput")) {
   });
   hInput.onchange = () => {
     const incoming = [...(hInput.files || [])];
-    if (!incoming.length) return;
-    heroFiles = incoming;
-    renderHeroDropMatched();
+    hInput.value = "";
+    if (incoming.length) setHeroFiles(incoming);
   };
   hDrop.ondragover = (e) => {
     e.preventDefault();
@@ -3087,9 +3060,7 @@ if ($("#heroDropzone") && $("#heroFileInput")) {
     e.preventDefault();
     hDrop.classList.remove("dragover");
     const incoming = [...(e.dataTransfer?.files || [])];
-    if (!incoming.length) return;
-    heroFiles = incoming;
-    renderHeroDropMatched();
+    if (incoming.length) setHeroFiles(incoming);
   };
 }
 $("#langPt").onclick = () => {
@@ -3162,17 +3133,22 @@ function openIncomingFiles(incoming, isShare = false) {
     );
     return;
   }
-  const first = incoming[0];
-  const defaultTool = first.type.startsWith("image/")
-    ? "remove-bg"
-    : first.type === "application/pdf" || /\.pdf$/i.test(first.name)
-      ? "compress-pdf"
-      : first.type.startsWith("video/")
-        ? "trim-video"
-        : first.type.startsWith("audio/")
-          ? "trim-audio"
-          : "file-hash";
-  openTool(defaultTool, { chainFiles: incoming, fromPaste: true });
+  // Home page + Ctrl+V: show the Smart Dropzone suggestions instead of guessing a tool.
+  if (!isShare && !dialog.open && $("#heroDropzone")) {
+    setHeroFiles(incoming);
+    toast(
+      L(
+        "Arquivo colado! Escolha a ferramenta sugerida no painel.",
+        "File pasted! Pick a suggested tool in the panel.",
+      ),
+    );
+    return;
+  }
+  const best = recommendToolsForFiles(incoming)[0] || findTool("file-hash");
+  openTool(best.id, {
+    chainFiles: filesForTool(best, incoming),
+    fromPaste: true,
+  });
   toast(
     isShare
       ? L(

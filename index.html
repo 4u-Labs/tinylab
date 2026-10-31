@@ -230,7 +230,12 @@
               >
             </div>
           </div>
-          <div id="heroDropMatched" class="hero-drop-matched" hidden></div>
+          <div
+            id="heroDropMatched"
+            class="hero-drop-matched"
+            aria-live="polite"
+            hidden
+          ></div>
         </div>
       </section>
       <section class="discovery" aria-label="Ferramentas / Tools">
@@ -266,7 +271,7 @@
               </button>
             </div>
             <div class="catalog-meta">
-              <span id="shownCount"></span>
+              <span id="shownCount" role="status" aria-live="polite"></span>
               <div
                 class="layout-switch"
                 role="group"
@@ -300,7 +305,7 @@
             </div>
           </div>
         </div>
-        <div class="tools-grid" id="catalog" aria-live="polite"></div>
+        <div class="tools-grid" id="catalog"></div>
       </section>
       <section class="privacy-note">
         <div class="privacy-icon">⌾</div>

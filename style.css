@@ -611,6 +611,7 @@ kbd {
   max-width: 1320px;
   margin: auto;
   padding: 0 24px 56px;
+  scroll-margin-top: 83px;
 }
 .featured-section {
   margin-bottom: 34px;
@@ -1081,9 +1082,21 @@ h2 {
   gap: 12px;
 }
 .tools-grid.is-compact .card-top {
-  margin-bottom: 0;
+  display: contents;
 }
-.tools-grid.is-compact .card-top-right,
+.tools-grid.is-compact .tool-icon {
+  order: 0;
+  width: 34px;
+  height: 34px;
+  font-size: 16px;
+}
+.tools-grid.is-compact .tool-card h3 {
+  order: 1;
+}
+.tools-grid.is-compact .card-top-right {
+  order: 2;
+}
+.tools-grid.is-compact .card-tag,
 .tools-grid.is-compact .card-category,
 .tools-grid.is-compact .tool-card p,
 .tools-grid.is-compact .card-bottom {
