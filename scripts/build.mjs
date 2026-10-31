@@ -204,6 +204,7 @@ const assets = [
   "./og-banner.jpg",
   "./og-banner.webp",
   ...outputs.map((p) => "./" + p),
+  ...(await walk("icons")).map((p) => "./" + p),
   ...(await walk("vendor")).map((p) => "./" + p),
   "./THIRD_PARTY_NOTICES.md",
 ];
@@ -394,6 +395,7 @@ for (const tool of internalTools) {
     .replaceAll('href="./"', 'href="../"')
     .replaceAll('src="icon-96.png', 'src="../icon-96.png')
     .replaceAll('src="icon-192.png', 'src="../icon-192.png')
+    .replaceAll('src="icons/', 'src="../icons/')
     .replace(
       '      <section class="privacy-note">',
       `${seoSheet}      <section class="privacy-note">`,

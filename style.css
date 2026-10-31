@@ -1433,7 +1433,157 @@ footer {
   border-top: 1px solid var(--line);
   max-width: 1320px;
   margin: auto;
-  padding: 28px 24px 20px;
+  padding: 32px 24px 22px;
+}
+.flagship-dock {
+  margin-bottom: 28px;
+  padding: 22px 24px;
+  border-radius: 20px;
+  border: 1px solid #bc8eff29;
+  background:
+    radial-gradient(circle at 12% 0%, #bc8eff18, transparent 48%),
+    radial-gradient(circle at 88% 100%, #64e5d614, transparent 52%),
+    linear-gradient(165deg, #171423 0%, #12111b 100%);
+  box-shadow: 0 18px 44px #00000048;
+}
+.flagship-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.flagship-head h3 {
+  margin: 4px 0 0;
+  font-size: 17px;
+  font-weight: 660;
+  letter-spacing: -0.3px;
+  color: #f4efff;
+}
+.flagship-store-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid #bc8eff42;
+  background: #bc8eff14;
+  color: #dfcbff;
+  font-size: 12px;
+  font-weight: 620;
+  white-space: nowrap;
+  transition:
+    border-color 0.18s,
+    background 0.18s,
+    transform 0.18s;
+}
+.flagship-store-link:hover {
+  border-color: var(--cyan);
+  background: #64e5d61a;
+  color: #aef7ed;
+  transform: translateY(-1px);
+}
+.flagship-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 12px;
+}
+.flagship-item {
+  --app-glow: #bc8eff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 7px;
+  padding: 15px 10px 13px;
+  border-radius: 16px;
+  border: 1px solid #ffffff12;
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      color-mix(in srgb, var(--app-glow) 18%, transparent),
+      transparent 70%
+    ),
+    #1b1828b8;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+.flagship-item:hover,
+.flagship-item:focus-visible {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--app-glow) 68%, #ffffff);
+  box-shadow:
+    0 14px 30px #00000058,
+    0 0 24px color-mix(in srgb, var(--app-glow) 28%, transparent);
+  outline: none;
+}
+.flagship-icon-wrap {
+  position: relative;
+  width: 62px;
+  height: 62px;
+  border-radius: 16px;
+  padding: 3px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--app-glow) 32%, #2a243d),
+    #14121d
+  );
+  border: 1px solid color-mix(in srgb, var(--app-glow) 40%, #ffffff18);
+  box-shadow: 0 8px 18px #00000055;
+  transition: transform 0.2s ease;
+}
+.flagship-item:hover .flagship-icon-wrap {
+  transform: scale(1.06);
+}
+.flagship-icon-wrap img {
+  width: 54px;
+  height: 54px;
+  border-radius: 13px;
+  object-fit: cover;
+  display: block;
+}
+.flagship-ext {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  background: #171424;
+  border: 1px solid color-mix(in srgb, var(--app-glow) 60%, #ffffff30);
+  color: #f3ecff;
+  font-size: 10px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  opacity: 0.78;
+  transition:
+    opacity 0.18s,
+    transform 0.18s,
+    background 0.18s;
+}
+.flagship-item:hover .flagship-ext {
+  opacity: 1;
+  transform: translate(1px, -1px);
+  background: color-mix(in srgb, var(--app-glow) 35%, #171424);
+}
+.flagship-item strong {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #f7f3ff;
+  letter-spacing: -0.2px;
+  margin-top: 2px;
+}
+.flagship-item small {
+  font-size: 11px;
+  color: #a9a1ba;
+  line-height: 1.3;
 }
 .footer-top {
   display: flex;
@@ -2053,6 +2203,9 @@ fieldset {
   .featured-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .flagship-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
   .account-button {
     display: none;
   }
@@ -2350,6 +2503,31 @@ fieldset {
   .tools-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
+  }
+  .flagship-dock {
+    padding: 16px 14px;
+    border-radius: 16px;
+    margin-bottom: 20px;
+  }
+  .flagship-head h3 {
+    font-size: 14.5px;
+  }
+  .flagship-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
+  }
+  .flagship-item {
+    padding: 12px 8px 10px;
+  }
+  .flagship-icon-wrap {
+    width: 52px;
+    height: 52px;
+    border-radius: 14px;
+  }
+  .flagship-icon-wrap img {
+    width: 44px;
+    height: 44px;
+    border-radius: 11px;
   }
   .tools-grid.is-compact {
     grid-template-columns: 1fr;

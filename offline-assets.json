@@ -1,5 +1,5 @@
 {
-  "cache": "tinylab-v2-b61f41239b75",
+  "cache": "tinylab-v2-694e4b7f25dd",
   "assets": [
     "./",
     "./index.html",
@@ -53,6 +53,13 @@
     "./assets/chunk-IWBUI2BJ.js.LEGAL.txt",
     "./assets/chunk-IWBUI2BJ.js",
     "./assets/chunk-DGJUBN33.js",
+    "./icons/4upass.webp",
+    "./icons/cadclone.webp",
+    "./icons/clipcut.webp",
+    "./icons/corelclone.webp",
+    "./icons/ecalc.webp",
+    "./icons/officeclone.webp",
+    "./icons/photoclone.webp",
     "./vendor/DejaVuSans.ttf",
     "./vendor/avif/avif_enc.js",
     "./vendor/avif/avif_enc.wasm",
