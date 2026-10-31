@@ -42,6 +42,11 @@ qa/
 /nup-pdf/
 /markdown-to-pdf/
 /pdf-metadata/
+/pdf-to-pptx/
+/edit-pdf-text/
+/grayscale-pdf/
+/compare-pdf/
+/epub-pdf/
 /compress-image/
 /convert-image/
 /resize-image/
@@ -69,6 +74,10 @@ qa/
 /split-image/
 /pfp-maker/
 /meme-mockup/
+/pro-image-converter/
+/image-palette/
+/colorize-image/
+/sticker-maker/
 /screen-recorder/
 /extract-audio/
 /convert-video/
@@ -89,6 +98,10 @@ qa/
 /crop-video/
 /speed-media/
 /voice-recorder/
+/text-to-speech/
+/add-audio-video/
+/reverse-video/
+/denoise-audio/
 /csv-to-excel/
 /excel-to-csv/
 /csv-to-json/
@@ -142,4 +155,9 @@ qa/
 /ai-product/
 /ai-youtube/
 /ai-faq/
+/ai-resume/
+/ai-brand/
+/ai-legal/
+/ai-transcript-summary/
+/ai-code/
 # END GENERATED SEO PAGES

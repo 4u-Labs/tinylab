@@ -2103,6 +2103,66 @@ fieldset {
   border-color: var(--cyan);
   color: var(--cyan);
 }
+.pixel-picker-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #13111c;
+  font-size: 12px;
+}
+.pixel-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid #ffffff33;
+  flex-shrink: 0;
+}
+.pixel-picker-bar small {
+  color: var(--muted);
+  font-family: ui-monospace, monospace;
+}
+.palette-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(125px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.palette-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #14121d;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, transform 0.15s;
+}
+.palette-swatch:hover {
+  border-color: var(--cyan);
+  transform: translateY(-1px);
+}
+.swatch-chip {
+  width: 100%;
+  height: 44px;
+  border-radius: 6px;
+  border: 1px solid #ffffff1a;
+}
+.palette-swatch strong {
+  font-size: 12px;
+  font-family: ui-monospace, monospace;
+}
+.palette-swatch small {
+  font-size: 10px;
+  color: var(--muted);
+}
 @media (max-width: 960px) {
   .seo-tool-sheet {
     margin: 0 24px 32px;

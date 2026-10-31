@@ -1009,6 +1009,451 @@ async function pdfToExcel(file, name, o, ctx) {
   }
 }
 
+const xmlEsc = (s) =>
+  String(s ?? "")
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "")
+    .replace(
+      /[&<>"']/g,
+      (c) =>
+        ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&apos;",
+        })[c],
+    );
+
+async function pdfToPptx(file, name, o, ctx) {
+  const { default: JSZip } = await import("jszip");
+  const zip = new JSZip();
+  const doc = await loadView(file);
+  const canRenderCanvas =
+    typeof OffscreenCanvas !== "undefined" ||
+    typeof HTMLCanvasElement !== "undefined";
+  try {
+    const numPages = doc.numPages;
+    const slideEntries = [];
+    const slideRels = [];
+    const contentOverrideSlides = [];
+
+    for (let i = 0; i < numPages; i++) {
+      check(ctx);
+      const slideNum = i + 1;
+      const page = await doc.getPage(slideNum);
+      const tc = await page.getTextContent();
+      const lines = [];
+      for (const it of tc.items) {
+        const str = (it.str || "").trim();
+        if (!str) continue;
+        const y = Math.round((it.transform?.[5] || 0) / 4) * 4;
+        const prev = lines.at(-1);
+        if (prev && Math.abs(prev.y - y) <= 6) {
+          prev.text += " " + str;
+        } else {
+          lines.push({ y, text: str });
+        }
+      }
+      const titleLine =
+        lines[0]?.text?.slice(0, 120) || `${name} — Slide ${slideNum}`;
+      const bodyLines = lines.slice(1, 24).map((l) => l.text);
+
+      let hasImage = false;
+      if (o.mode !== "text" && canRenderCanvas) {
+        try {
+          const c = await renderPage(doc, i, 1.5);
+          const pngBlob = await toBlob(c, "image/png");
+          zip.file(
+            `ppt/media/slide-${slideNum}.png`,
+            await pngBlob.arrayBuffer(),
+          );
+          hasImage = true;
+        } catch {}
+      }
+
+      const picXml = hasImage
+        ? `<p:pic>
+            <p:nvPicPr>
+              <p:cNvPr id="10" name="PageImage ${slideNum}"/>
+              <p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr>
+              <p:nvPr/>
+            </p:nvPicPr>
+            <p:blipFill>
+              <a:blip r:embed="rId2"/>
+              <a:stretch><a:fillRect/></a:stretch>
+            </p:blipFill>
+            <p:spPr>
+              <a:xfrm><a:off x="0" y="0"/><a:ext cx="9144000" cy="6858000"/></a:xfrm>
+              <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+            </p:spPr>
+          </p:pic>`
+        : "";
+
+      const parasXml = (bodyLines.length ? bodyLines : [titleLine])
+        .map(
+          (ln) =>
+            `<a:p><a:r><a:rPr lang="pt-BR" sz="${hasImage ? "1200" : "1800"}" dirty="0"/><a:t>${xmlEsc(ln)}</a:t></a:r></a:p>`,
+        )
+        .join("");
+
+      const textShapeXml = `<p:sp>
+        <p:nvSpPr>
+          <p:cNvPr id="2" name="Title ${slideNum}"/>
+          <p:cNvSpPr><a:spLocks noGrp="1"/></p:cNvSpPr>
+          <p:nvPr/>
+        </p:nvSpPr>
+        <p:spPr>
+          <a:xfrm>
+            <a:off x="457200" y="${hasImage ? "5900000" : "457200"}"/>
+            <a:ext cx="8229600" cy="${hasImage ? "800000" : "5800000"}"/>
+          </a:xfrm>
+          <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>
+          ${hasImage ? '<a:solidFill><a:srgbClr val="FFFFFF"><a:alpha val="85000"/></a:srgbClr></a:solidFill>' : "<a:noFill/>"}
+        </p:spPr>
+        <p:txBody>
+          <a:bodyPr wrap="square"/>
+          <a:lstStyle/>
+          <a:p><a:r><a:rPr lang="pt-BR" sz="${hasImage ? "1400" : "2600"}" b="1" dirty="0"/><a:t>${xmlEsc(titleLine)}</a:t></a:r></a:p>
+          ${hasImage ? "" : parasXml}
+        </p:txBody>
+      </p:sp>`;
+
+      zip.file(
+        `ppt/slides/slide${slideNum}.xml`,
+        `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sld xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+  <p:cSld>
+    <p:spTree>
+      <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr>
+      <p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>
+      ${picXml}
+      ${textShapeXml}
+    </p:spTree>
+  </p:cSld>
+</p:sld>`,
+      );
+
+      zip.file(
+        `ppt/slides/_rels/slide${slideNum}.xml.rels`,
+        `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
+  ${hasImage ? `<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/slide-${slideNum}.png"/>` : ""}
+</Relationships>`,
+      );
+
+      slideEntries.push(
+        `<p:sldId id="${255 + slideNum}" r:id="rId${slideNum + 1}"/>`,
+      );
+      slideRels.push(
+        `<Relationship Id="rId${slideNum + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide${slideNum}.xml"/>`,
+      );
+      contentOverrideSlides.push(
+        `<Override PartName="/ppt/slides/slide${slideNum}.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`,
+      );
+      progress(ctx, ((i + 1) / numPages) * 92);
+      await tick();
+    }
+
+    zip.file(
+      "[Content_Types].xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Default Extension="png" ContentType="image/png"/>
+  <Override PartName="/ppt/presentation.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.presentation.main+xml"/>
+  <Override PartName="/ppt/slideMasters/slideMaster1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideMaster+xml"/>
+  <Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/>
+  ${contentOverrideSlides.join("\n  ")}
+</Types>`,
+    );
+
+    zip.file(
+      "_rels/.rels",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/>
+</Relationships>`,
+    );
+
+    zip.file(
+      "ppt/presentation.xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:presentation xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+  <p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst>
+  <p:sldIdLst>${slideEntries.join("")}</p:sldIdLst>
+  <p:sldSz cx="9144000" cy="6858000" type="screen4x3"/>
+  <p:notesSz cx="6858000" cy="9144000"/>
+</p:presentation>`,
+    );
+
+    zip.file(
+      "ppt/_rels/presentation.xml.rels",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="slideMasters/slideMaster1.xml"/>
+  ${slideRels.join("\n  ")}
+</Relationships>`,
+    );
+
+    zip.file(
+      "ppt/slideMasters/slideMaster1.xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sldMaster xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">
+  <p:cSld><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr></p:spTree></p:cSld>
+  <p:clrMap bg1="lt1" tx1="dk1" bg2="lt2" tx2="dk2" accent1="accent1" accent2="accent2" accent3="accent3" accent4="accent4" accent5="accent5" accent6="accent6" hlink="hlink" folHlink="folHlink"/>
+  <p:sldLayoutIdLst><p:sldLayoutId id="2147483649" r:id="rId1"/></p:sldLayoutIdLst>
+</p:sldMaster>`,
+    );
+
+    zip.file(
+      "ppt/slideMasters/_rels/slideMaster1.xml.rels",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>
+</Relationships>`,
+    );
+
+    zip.file(
+      "ppt/slideLayouts/slideLayout1.xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sldLayout xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" type="blank">
+  <p:cSld name="Blank"><p:spTree><p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/><a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr></p:spTree></p:cSld>
+</p:sldLayout>`,
+    );
+
+    zip.file(
+      "ppt/slideLayouts/_rels/slideLayout1.xml.rels",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="../slideMasters/slideMaster1.xml"/>
+</Relationships>`,
+    );
+
+    const pptxBlob = await zip.generateAsync({
+      type: "blob",
+      mimeType:
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      compression: "DEFLATE",
+    });
+    return [output(pptxBlob, `${name}.pptx`)];
+  } finally {
+    await doc.destroy();
+  }
+}
+
+async function epubPdf(file, name, o, ctx) {
+  const { default: JSZip } = await import("jszip");
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const isPdf =
+    /\.pdf$/i.test(file.name || "") ||
+    (bytes[0] === 0x25 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x44 &&
+      bytes[3] === 0x46);
+
+  if (isPdf) {
+    const pages = await extractText(file, ctx);
+    const nonEmpty = pages.filter((p) => p.trim());
+    if (!nonEmpty.length)
+      throw new Error(
+        "PDF sem texto selecionável. Use OCR de PDF primeiro / No selectable text in PDF. Run PDF OCR first.",
+      );
+    const bookTitle = String(o.title || name || "Livro TinyLab").trim();
+    const bookAuthor = String(o.author || "TinyLab · 4u-Labs").trim();
+    const uid = `urn:uuid:tinylab-${Date.now()}`;
+    const zip = new JSZip();
+    zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
+    zip.file(
+      "META-INF/container.xml",
+      `<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">
+  <rootfiles>
+    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>
+  </rootfiles>
+</container>`,
+    );
+    zip.file(
+      "OEBPS/style.css",
+      `body { font-family: serif; line-height: 1.65; margin: 1.2em; color: #111; } h1, h2 { font-family: sans-serif; } p { margin: 0 0 0.9em; text-align: justify; }`,
+    );
+    const manifestItems = [
+      `<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>`,
+      `<item id="css" href="style.css" media-type="text/css"/>`,
+    ];
+    const spineItems = [];
+    const navLinks = [];
+    pages.forEach((pText, idx) => {
+      const chNum = idx + 1;
+      const paras = (pText || "")
+        .split(/\n{2,}|\r?\n/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const chTitle = paras[0]?.slice(0, 72) || `Capítulo ${chNum}`;
+      const bodyHtml = (paras.length ? paras : [`Página ${chNum}`])
+        .map((ln) => `<p>${xmlEsc(ln)}</p>`)
+        .join("\n    ");
+      zip.file(
+        `OEBPS/chapter-${chNum}.xhtml`,
+        `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="pt-BR">
+<head>
+  <title>${xmlEsc(chTitle)}</title>
+  <link rel="stylesheet" type="text/css" href="style.css"/>
+</head>
+<body>
+  <h2>${xmlEsc(chTitle)}</h2>
+  ${bodyHtml}
+</body>
+</html>`,
+      );
+      manifestItems.push(
+        `<item id="ch${chNum}" href="chapter-${chNum}.xhtml" media-type="application/xhtml+xml"/>`,
+      );
+      spineItems.push(`<itemref idref="ch${chNum}"/>`);
+      navLinks.push(
+        `<li><a href="chapter-${chNum}.xhtml">${xmlEsc(chTitle)}</a></li>`,
+      );
+    });
+    zip.file(
+      "OEBPS/nav.xhtml",
+      `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="pt-BR">
+<head><title>${xmlEsc(bookTitle)}</title></head>
+<body>
+  <nav epub:type="toc" id="toc">
+    <h1>${xmlEsc(bookTitle)}</h1>
+    <ol>${navLinks.join("\n      ")}</ol>
+  </nav>
+</body>
+</html>`,
+    );
+    zip.file(
+      "OEBPS/content.opf",
+      `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="bookid" version="3.0">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:identifier id="bookid">${xmlEsc(uid)}</dc:identifier>
+    <dc:title>${xmlEsc(bookTitle)}</dc:title>
+    <dc:creator>${xmlEsc(bookAuthor)}</dc:creator>
+    <dc:language>pt-BR</dc:language>
+    <meta property="dcterms:modified">${new Date().toISOString().replace(/\.\d+Z$/, "Z")}</meta>
+  </metadata>
+  <manifest>
+    ${manifestItems.join("\n    ")}
+  </manifest>
+  <spine>
+    ${spineItems.join("\n    ")}
+  </spine>
+</package>`,
+    );
+    const epubBlob = await zip.generateAsync({
+      type: "blob",
+      mimeType: "application/epub+zip",
+      compression: "DEFLATE",
+    });
+    return [output(epubBlob, `${name}.epub`)];
+  }
+
+  // EPUB -> PDF
+  const zip = await JSZip.loadAsync(bytes);
+  const paths = Object.keys(zip.files).filter((p) => !zip.files[p].dir);
+  let opfPath = paths.find((p) => /\.opf$/i.test(p));
+  if (!opfPath && zip.file("META-INF/container.xml")) {
+    const containerXml = await zip.file("META-INF/container.xml").async("string");
+    const m = containerXml.match(/full-path=["']([^"']+)["']/i);
+    if (m && zip.file(m[1])) opfPath = m[1];
+  }
+  const opfDir =
+    opfPath && opfPath.includes("/")
+      ? opfPath.slice(0, opfPath.lastIndexOf("/") + 1)
+      : "";
+  let orderedFiles = [];
+  if (opfPath && zip.file(opfPath)) {
+    const opfXml = await zip.file(opfPath).async("string");
+    const manifestMap = new Map();
+    for (const m of opfXml.matchAll(/<item\b([^>]+)\/?>/gi)) {
+      const attrs = m[1];
+      const id = attrs.match(/\bid=["']([^"']+)["']/i)?.[1];
+      const href = attrs.match(/\bhref=["']([^"']+)["']/i)?.[1];
+      if (id && href)
+        manifestMap.set(id, opfDir + decodeURIComponent(href.split("#")[0]));
+    }
+    for (const s of opfXml.matchAll(
+      /<itemref\b[^>]*\bidref=["']([^"']+)["']/gi,
+    )) {
+      const target = manifestMap.get(s[1]);
+      if (target && zip.file(target)) orderedFiles.push(target);
+    }
+  }
+  if (!orderedFiles.length) {
+    orderedFiles = paths
+      .filter((p) => /\.(x?html|htm)$/i.test(p) && !/nav\.xhtml$/i.test(p))
+      .sort();
+  }
+  const htmlChapters = [];
+  for (const p of orderedFiles) {
+    const rawHtml = await zip.file(p).async("string");
+    const bodyMatch = rawHtml.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+    htmlChapters.push(bodyMatch ? bodyMatch[1] : rawHtml);
+  }
+  const fullHtml = htmlChapters.join("\n<hr/>\n");
+  if (!fullHtml.trim())
+    throw new Error("Nenhum capítulo legível encontrado no EPUB / No readable chapters in EPUB.");
+  const pdfDoc = await wordHtmlToPdf(fullHtml);
+  if (o.title) pdfDoc.setTitle(String(o.title));
+  if (o.author) pdfDoc.setAuthor(String(o.author));
+  return [
+    output(
+      new Blob([await pdfDoc.save({ useObjectStreams: true })], {
+        type: "application/pdf",
+      }),
+      `${name}.pdf`,
+    ),
+  ];
+}
+
+async function comparePdf(files, o, ctx) {
+  if (files.length < 2)
+    throw new Error(
+      "Selecione dois arquivos PDF para comparar / Select two PDF files to compare.",
+    );
+  const [pagesA, pagesB] = await Promise.all([
+    extractText(files[0], ctx),
+    extractText(files[1], ctx),
+  ]);
+  const textA = pagesA
+    .map((p, i) => `=== Página ${i + 1} ===\n${p}`)
+    .join("\n\n");
+  const textB = pagesB
+    .map((p, i) => `=== Página ${i + 1} ===\n${p}`)
+    .join("\n\n");
+  const { diffStructured, compareLines } = await import("./text.js");
+  const rows = diffStructured(textA, textB);
+  const diffTxt = compareLines(textA, textB);
+  const added = rows.filter((r) => r.type === "add" || r.type === "change").length;
+  const removed = rows.filter((r) => r.type === "del" || r.type === "change").length;
+  const summaryHeader = `Comparação de PDFs (TinyLab)\nArquivo A: ${files[0].name} (${pagesA.length} páginas)\nArquivo B: ${files[1].name} (${pagesB.length} páginas)\nBlocos alterados/adicionados: +${added} | removidos: -${removed}\n\n`;
+  const reportPdf = await textPDF(summaryHeader + diffTxt);
+  return [
+    output(
+      reportPdf,
+      `${baseName(files[0].name)}-vs-${baseName(files[1].name)}-diff.pdf`,
+    ),
+    {
+      ...textOutput(
+        summaryHeader + diffTxt,
+        `${baseName(files[0].name)}-vs-${baseName(files[1].name)}.diff.txt`,
+      ),
+      diffRows: rows,
+      viewMode: o.viewMode || "split",
+    },
+  ];
+}
+
 export async function run(id, files, o, ctx = {}) {
   const name = baseName(files[0]?.name || "tinylab");
   const originalSize = files[0]?.size;
@@ -1051,6 +1496,18 @@ export async function run(id, files, o, ctx = {}) {
 
   if (id === "pdf-to-excel") {
     return pdfToExcel(files[0], name, o, ctx);
+  }
+
+  if (id === "pdf-to-pptx") {
+    return pdfToPptx(files[0], name, o, ctx);
+  }
+
+  if (id === "epub-pdf") {
+    return epubPdf(files[0], name, o, ctx);
+  }
+
+  if (id === "compare-pdf") {
+    return comparePdf(files, o, ctx);
   }
 
   if (id === "pdf-to-text") {
@@ -1660,6 +2117,198 @@ export async function run(id, files, o, ctx = {}) {
         "application/json",
       ),
     ];
+  } else if (id === "edit-pdf-text") {
+    const findStr = String(o.find || "").trim();
+    const replaceStr = String(o.replace ?? "");
+    if (!findStr)
+      throw new Error(
+        "Informe o texto que deseja localizar / Enter the text to find.",
+      );
+    const font = await embedFont(doc);
+    const allowed = new Set(font.getCharacterSet());
+    const indices = pageIndices(o.pages, count);
+    const parseHexRgb = (h) => {
+      const m = String(h || "#000000")
+        .replace("#", "")
+        .padEnd(6, "0");
+      return rgb(
+        parseInt(m.slice(0, 2), 16) / 255,
+        parseInt(m.slice(2, 4), 16) / 255,
+        parseInt(m.slice(4, 6), 16) / 255,
+      );
+    };
+    const bgClr = parseHexRgb(o.bgColor || "#ffffff");
+    const txtClr = parseHexRgb(o.color || "#111111");
+    const view = await loadView(files[0]);
+    let replacements = 0;
+    try {
+      const needleLower = findStr.toLowerCase();
+      for (const pIdx of indices) {
+        check(ctx);
+        const vpPage = await view.getPage(pIdx + 1);
+        const tc = await vpPage.getTextContent();
+        const pdfPage = pages[pIdx];
+        const { width: pw } = pdfPage.getSize();
+        for (const it of tc.items) {
+          const raw = it.str || "";
+          if (!raw || !raw.toLowerCase().includes(needleLower)) continue;
+          const tr = it.transform || [12, 0, 0, 12, 40, 40];
+          const fSize = Math.max(
+            6,
+            Math.hypot(tr[2], tr[3]) || Math.abs(tr[0]) || 12,
+          );
+          const x = tr[4] || 0;
+          const y = tr[5] || 0;
+          const origW = Math.max(
+            it.width || raw.length * fSize * 0.52,
+            font.widthOfTextAtSize(sanitizeForFont(raw, allowed), fSize),
+          );
+          const updatedStr = sanitizeForFont(
+            raw.replace(
+              new RegExp(findStr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi"),
+              replaceStr,
+            ),
+            allowed,
+          );
+          pdfPage.drawRectangle({
+            x: Math.max(0, x - 1.5),
+            y: y - fSize * 0.24,
+            width: origW + 3,
+            height: fSize * 1.28,
+            color: bgClr,
+          });
+          if (updatedStr) {
+            const availW = Math.max(40, pw - x - 18);
+            const neededW = font.widthOfTextAtSize(updatedStr, fSize);
+            const drawSize =
+              neededW > availW ? Math.max(6, (fSize * availW) / neededW) : fSize;
+            pdfPage.drawText(updatedStr, {
+              x,
+              y,
+              size: drawSize,
+              font,
+              color: txtClr,
+            });
+          }
+          replacements++;
+        }
+      }
+    } finally {
+      await view.destroy();
+    }
+    if (!replacements)
+      throw new Error(
+        "Texto não encontrado nas páginas selecionadas / Text not found on the selected pages.",
+      );
+    return pdfResult(doc);
+  } else if (id === "grayscale-pdf") {
+    const canCanvas =
+      typeof OffscreenCanvas !== "undefined" ||
+      typeof HTMLCanvasElement !== "undefined";
+    if ((o.mode === "raster" || o.mode === "bw") && canCanvas) {
+      const view = await loadView(files[0]);
+      const target = await PDFDocument.create();
+      try {
+        for (let i = 0; i < count; i++) {
+          check(ctx);
+          const vp = (await view.getPage(i + 1)).getViewport({ scale: 1 });
+          const c = await renderPage(view, i, 1.75);
+          const g = c.getContext("2d");
+          const px = g.getImageData(0, 0, c.width, c.height);
+          const d = px.data;
+          const isBw = o.mode === "bw";
+          for (let k = 0; k < d.length; k += 4) {
+            const lum = Math.round(
+              0.299 * d[k] + 0.587 * d[k + 1] + 0.114 * d[k + 2],
+            );
+            const v = isBw ? (lum >= 150 ? 255 : 0) : lum;
+            d[k] = v;
+            d[k + 1] = v;
+            d[k + 2] = v;
+          }
+          g.putImageData(px, 0, 0);
+          const jpg = await (await toBlob(c, "image/jpeg", 0.88)).arrayBuffer();
+          const img = await target.embedJpg(jpg);
+          const p = target.addPage([vp.width, vp.height]);
+          p.drawImage(img, { x: 0, y: 0, width: vp.width, height: vp.height });
+          progress(ctx, ((i + 1) / count) * 95);
+          await tick();
+        }
+      } finally {
+        await view.destroy();
+      }
+      return pdfResult(target);
+    }
+    // Smart vector-preserving grayscale: convert embedded RGB XObject streams + RGB stream operators
+    for (const [ref, obj] of doc.context.enumerateIndirectObjects()) {
+      if (!(obj instanceof PDFRawStream)) continue;
+      const dict = obj.dict;
+      const subtype = dict.lookup(PDFName.of("Subtype"))?.toString?.() || "";
+      if (subtype === "/Image") {
+        const iw = dict.lookup(PDFName.of("Width"))?.asNumber?.() || 0;
+        const ih = dict.lookup(PDFName.of("Height"))?.asNumber?.() || 0;
+        const bpc = dict.lookup(PDFName.of("BitsPerComponent"))?.asNumber?.() ?? 8;
+        const cs = dict.lookup(PDFName.of("ColorSpace"))?.toString?.() || "";
+        const filter = dict.lookup(PDFName.of("Filter"))?.toString?.() || "";
+        if (iw > 0 && ih > 0 && bpc === 8 && cs === "/DeviceRGB" && !filter.includes("DCTDecode")) {
+          try {
+            const decoded = decodePDFRawStream(obj).decode();
+            if (decoded.length >= iw * ih * 3) {
+              const gray = new Uint8Array(iw * ih);
+              const isBw = o.mode === "bw";
+              for (let p = 0, s = 0; p < iw * ih; p++, s += 3) {
+                const lum = Math.round(
+                  0.299 * decoded[s] + 0.587 * decoded[s + 1] + 0.114 * decoded[s + 2],
+                );
+                gray[p] = isBw ? (lum >= 150 ? 255 : 0) : lum;
+              }
+              const flate = doc.context.flateStream(gray);
+              const nextDict = dict.clone(doc.context);
+              nextDict.set(PDFName.of("ColorSpace"), PDFName.of("DeviceGray"));
+              nextDict.set(PDFName.of("Filter"), PDFName.of("FlateDecode"));
+              nextDict.delete(PDFName.of("DecodeParms"));
+              nextDict.set(
+                PDFName.of("Length"),
+                doc.context.obj(flate.contents.length),
+              );
+              doc.context.assign(ref, PDFRawStream.of(nextDict, flate.contents));
+            }
+          } catch {}
+        }
+      } else if (!subtype) {
+        try {
+          const raw = decodePDFRawStream(obj).decode();
+          const str = new TextDecoder("latin1").decode(raw);
+          if (/\b(rg|RG)\b/.test(str)) {
+            const grayStr = str.replace(
+              /(\d*\.?\d+)\s+(\d*\.?\d+)\s+(\d*\.?\d+)\s+(rg|RG)\b/g,
+              (_, r, g, b, op) => {
+                const y = (
+                  0.299 * Number(r) +
+                  0.587 * Number(g) +
+                  0.114 * Number(b)
+                ).toFixed(3);
+                return `${y} ${op === "rg" ? "g" : "G"}`;
+              },
+            );
+            if (grayStr !== str) {
+              const encoded = new Uint8Array(grayStr.length);
+              for (let k = 0; k < grayStr.length; k++)
+                encoded[k] = grayStr.charCodeAt(k) & 0xff;
+              const flate = doc.context.flateStream(encoded);
+              const nextDict = dict.clone(doc.context);
+              nextDict.set(PDFName.of("Filter"), PDFName.of("FlateDecode"));
+              nextDict.set(
+                PDFName.of("Length"),
+                doc.context.obj(flate.contents.length),
+              );
+              doc.context.assign(ref, PDFRawStream.of(nextDict, flate.contents));
+            }
+          }
+        } catch {}
+      }
+    }
+    return pdfResult(doc);
   } else {
     throw new Error("Ferramenta desconhecida / Unknown tool.");
   }

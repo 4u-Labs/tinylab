@@ -208,8 +208,8 @@ function updateDocTitle() {
         `${active.title.en} Free Online — No Ads | TinyLab`,
       )
     : L(
-        "TinyLab — 132 Ferramentas Web Livres, Rápidas & Privadas",
-        "TinyLab — 132 Free, Fast & Private Web Tools",
+        "TinyLab — 150 Ferramentas Web Livres, Rápidas & Privadas",
+        "TinyLab — 150 Free, Fast & Private Web Tools",
       );
 }
 function translate() {
@@ -361,6 +361,30 @@ function helpText(tool) {
       "Ampliação por interpolação. Não recupera detalhes que não existem na imagem original.",
       "Interpolation-based enlargement. Does not recover details missing from the original image.",
     ),
+    "pdf-to-pptx": L(
+      "Cada página do PDF vira um slide editável no PowerPoint (.pptx).",
+      "Each PDF page becomes an editable slide in PowerPoint (.pptx).",
+    ),
+    "edit-pdf-text": L(
+      "Informe o trecho exato para localizar e o novo texto para substituir nas páginas do PDF.",
+      "Enter the exact phrase to find and the replacement text across PDF pages.",
+    ),
+    "compare-pdf": L(
+      "Selecione 2 arquivos PDF para comparar linha a linha e gerar o relatório visual de diferenças.",
+      "Select 2 PDF files to compare line by line and generate a visual diff report.",
+    ),
+    "epub-pdf": L(
+      "Envie um arquivo .epub para gerar um PDF paginado ou envie um .pdf para exportar um e-book EPUB 3.",
+      "Upload an .epub to generate a paginated PDF or upload a .pdf to export an EPUB 3 e-book.",
+    ),
+    "image-palette": L(
+      "Clique em qualquer ponto da imagem na prévia para capturar a cor exata (HEX/RGB) ou clique em Processar para gerar o cartão da paleta.",
+      "Click anywhere on the preview image to sample a pixel's exact HEX/RGB color, or click Process to generate the full palette card.",
+    ),
+    "add-audio-video": L(
+      "Selecione 1 arquivo de vídeo (.mp4/.webm) e 1 arquivo de áudio (.mp3/.wav) juntos.",
+      "Select 1 video file (.mp4/.webm) and 1 audio file (.mp3/.wav) together.",
+    ),
   };
   return basic + " " + (special[tool.id] || "");
 }
@@ -381,6 +405,7 @@ function stopScanner() {
   scannerTimer = null;
   scannerStream?.getTracks().forEach((t) => t.stop());
   scannerStream = null;
+  if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
 }
 function openTool(id, { chainFiles = [], content = "", fromPaste = false } = {}) {
   const tool = findTool(id);
@@ -427,7 +452,9 @@ function openTool(id, { chainFiles = [], content = "", fromPaste = false } = {})
   const ecoBar =
     tool.category === "media"
       ? `<div class="ecosystem-shortcuts"><span>${L("Apps irmãos 4u-Labs:", "4u-Labs sister apps:")}</span><a href="https://4u.ia.br/app/clipcut/" target="_blank" rel="noopener noreferrer">✂ ClipCut (${L("Editor Multifaixas", "Multitrack Editor")}) ↗</a><a href="https://4u.ia.br/app/baixou/" target="_blank" rel="noopener noreferrer">⬇ BAIXOU!! (${L("Baixar Vídeos", "Video Downloader")}) ↗</a></div>`
-      : "";
+      : tool.category === "image"
+        ? `<div class="ecosystem-shortcuts"><span>${L("App irmão 4u-Labs:", "4u-Labs sister app:")}</span><a href="https://4u.ia.br/app/oneclick/" target="_blank" rel="noopener noreferrer">✨ OneClick AI (${L("Estúdio Fotográfico IA", "AI Photo Studio")}) ↗</a></div>`
+        : "";
   const pasteQuickTools =
     fromPaste && chainFiles[0]?.type?.startsWith("image/")
       ? [
@@ -458,7 +485,9 @@ function openTool(id, { chainFiles = [], content = "", fromPaste = false } = {})
         ? `<div class="sig-upload-bar"><label class="secondary file-pill">📂 ${L("Importar arquivo .srt", "Import .srt file")}<input id="srtFileInput" type="file" accept=".srt,text/plain" hidden></label></div>`
         : tool.id === "qr-code-studio"
           ? `<div class="sig-upload-bar"><label class="secondary file-pill"><span id="qrLogoText">🖼 ${L("Opcional: Logo central (PNG/JPG)", "Optional: Center logo (PNG/JPG)")}</span><input id="qrLogoInput" type="file" accept="image/*" hidden></label><button type="button" class="secondary small" id="qrLogoClear" hidden>×</button></div>`
-          : "";
+          : tool.id === "text-to-speech"
+            ? `<div class="sig-upload-bar"><button type="button" class="secondary small" id="ttsSpeakBtn">🔊 ${L("Ouvir com voz do navegador (Web Speech)", "Listen with browser voice (Web Speech)")}</button><button type="button" class="secondary small" id="ttsStopBtn" hidden>⏹ ${L("Parar voz", "Stop voice")}</button></div>`
+            : "";
   $("#workspaceBody").innerHTML =
     `<div class="workspace-input">${ecoBar}${pasteBar}<form id="toolForm"><fieldset id="toolFields">${tool.input === "files" ? `<label class="dropzone" id="dropzone" tabindex="0"><input id="fileInput" type="file" accept="${esc(tool.accept)}" ${tool.multiple ? "multiple" : ""} hidden><span class="drop-icon">＋</span><strong>${t("drop")}</strong><small>${t("dropSub")} · Ctrl+V</small></label><ol id="fileList" class="file-list"></ol>` : ""}${tool.input === "record" ? `<div class="record-panel"><span>${tool.id === "voice-recorder" ? "🎙" : "◉"}</span><p>${helpText(tool)}</p><button type="button" class="primary" id="recordToggle">${L("Iniciar gravação", "Start recording")}</button><canvas id="recordWave" class="record-wave" width="480" height="76" hidden></canvas><p id="recordClock">00:00</p></div>` : ""}${extraControls}<div class="controls">${tool.options.map(field).join("")}</div><div id="formFields" class="controls"></div><div id="inputPreview" class="input-preview"></div>${modelNotice(tool)}<details class="help"><summary>${t("help")}</summary><p>${esc(helpText(tool))}</p></details></fieldset><div class="execution-bar">${tool.input !== "record" ? `<button class="primary" type="submit" id="execute">${tool.model ? L("Baixar modelo e processar", "Download model & process") : t("run")} <span>→</span></button>` : ""}<button type="button" class="secondary" id="clearInput">${t("reset")}</button><button type="button" class="secondary danger" id="cancel" hidden>${t("cancel")}</button></div></form><div class="progress-box"><progress id="progress" max="100" value="0" hidden></progress><p id="status" role="status" aria-live="polite">${t("ready")}</p></div></div><div class="workspace-output"><div class="output-heading"><span class="eyebrow">${t("output")}</span><div id="resultActions"></div></div><div id="results"></div></div>`;
   cleanResults();
@@ -505,6 +534,37 @@ function openTool(id, { chainFiles = [], content = "", fromPaste = false } = {})
   }
   if ($("#cameraScanBtn")) {
     $("#cameraScanBtn").onclick = toggleCameraScanner;
+  }
+  if ($("#ttsSpeakBtn")) {
+    $("#ttsSpeakBtn").onclick = () => {
+      if (typeof speechSynthesis === "undefined") {
+        toast(
+          L(
+            "Síntese nativa indisponível neste navegador. Clique em Processar para gerar o WAV.",
+            "Native speech unavailable in this browser. Click Process to generate WAV.",
+          ),
+        );
+        return;
+      }
+      speechSynthesis.cancel();
+      const txt = ($("#option-content")?.value || "").trim();
+      if (!txt) return;
+      const u = new SpeechSynthesisUtterance(txt);
+      u.lang = lang === "pt" ? "pt-BR" : "en-US";
+      u.rate = Number($("#option-rate")?.value || 1);
+      const vp = $("#option-voiceProfile")?.value || "female";
+      u.pitch =
+        vp === "female" ? 1.15 : vp === "male" ? 0.82 : vp === "robot" ? 0.6 : 1.0;
+      $("#ttsStopBtn").hidden = false;
+      u.onend = u.onerror = () => {
+        if ($("#ttsStopBtn")) $("#ttsStopBtn").hidden = true;
+      };
+      speechSynthesis.speak(u);
+    };
+    $("#ttsStopBtn").onclick = () => {
+      if (typeof speechSynthesis !== "undefined") speechSynthesis.cancel();
+      $("#ttsStopBtn").hidden = true;
+    };
   }
   $("#toolForm").addEventListener("submit", execute);
   $("#clearInput").onclick = () => {
@@ -1124,9 +1184,12 @@ async function renderInputPreview() {
       }
       return;
     }
-    if (file.type.startsWith("image/") || /\.(heic|heif)$/i.test(file.name)) {
-      const { bitmap } = await import("./utils.js"),
-        img = await bitmap(file);
+    if (
+      file.type.startsWith("image/") ||
+      /\.(heic|heif|psd|tiff?|bmp|ico|cur)$/i.test(file.name)
+    ) {
+      const { loadAnyImage } = await import("./engines/image.js"),
+        img = await loadAnyImage(file);
       if (generation !== previewGeneration) {
         img.close?.();
         return;
@@ -1140,6 +1203,7 @@ async function renderInputPreview() {
       el.append(c);
       if (active.id === "crop-image") setupCrop(c, el);
       else if (active.id === "remove-object") setupObjectMask(c, el);
+      else if (active.id === "image-palette") setupPixelPicker(c, el);
       return;
     }
     if (file.type.startsWith("video/") || file.type.startsWith("audio/")) {
@@ -1176,6 +1240,39 @@ async function renderInputPreview() {
       el.append(p);
     }
   }
+}
+function setupPixelPicker(c, el) {
+  c.style.cursor = "crosshair";
+  const bar = document.createElement("div");
+  bar.className = "pixel-picker-bar";
+  bar.innerHTML = `<span class="pixel-swatch" id="pixelSwatch" style="background:#7928ca"></span><strong id="pixelHex">${L("Clique na imagem para capturar uma cor", "Click on the image to sample a pixel color")}</strong><small id="pixelRgb"></small>`;
+  el.append(bar);
+  c.onclick = (e) => {
+    const r = c.getBoundingClientRect();
+    const x = Math.max(
+      0,
+      Math.min(c.width - 1, Math.floor(((e.clientX - r.left) * c.width) / r.width)),
+    );
+    const y = Math.max(
+      0,
+      Math.min(c.height - 1, Math.floor(((e.clientY - r.top) * c.height) / r.height)),
+    );
+    const px = c.getContext("2d").getImageData(x, y, 1, 1).data;
+    const hex =
+      "#" +
+      [px[0], px[1], px[2]]
+        .map((v) => v.toString(16).padStart(2, "0"))
+        .join("")
+        .toUpperCase();
+    const rgb = `rgb(${px[0]}, ${px[1]}, ${px[2]})`;
+    bar.querySelector("#pixelSwatch").style.background = hex;
+    bar.querySelector("#pixelHex").textContent = hex;
+    bar.querySelector("#pixelRgb").textContent = rgb;
+    navigator.clipboard
+      ?.writeText(hex)
+      .then(() => toast(`${L("Cor copiada:", "Color copied:")} ${hex}`))
+      .catch(() => {});
+  };
 }
 function setupObjectMask(c, el) {
   const hint = document.createElement("p");
@@ -1942,6 +2039,7 @@ async function renderResults(all = results) {
           "remove-object",
           "compress-image",
           "ai-upscale",
+          "colorize-image",
         ].includes(active?.id);
         const summary = document.createElement("summary");
         summary.textContent = L(
@@ -2200,6 +2298,27 @@ async function renderResults(all = results) {
       article.append(label);
     }
     target.append(article);
+  }
+  const palObj = all.find((r) => Array.isArray(r.palette));
+  if (palObj) {
+    const grid = document.createElement("div");
+    grid.className = "palette-grid";
+    grid.innerHTML = palObj.palette
+      .map(
+        (p) =>
+          `<button type="button" class="palette-swatch" data-copy-hex="${esc(p.hex.toUpperCase())}"><span class="swatch-chip" style="background:${esc(p.hex)}"></span><strong>${esc(p.hex.toUpperCase())}</strong><small>rgb(${p.rgb.join(",")}) · ${p.percent}%</small></button>`,
+      )
+      .join("");
+    grid.onclick = (e) => {
+      const btn = e.target.closest("[data-copy-hex]");
+      if (!btn) return;
+      const hex = btn.dataset.copyHex;
+      navigator.clipboard
+        ?.writeText(hex)
+        .then(() => toast(`${L("Cor copiada:", "Color copied:")} ${hex}`))
+        .catch(() => {});
+    };
+    target.prepend(grid);
   }
   const diffObj = all.find((r) => Array.isArray(r.diffRows));
   if (diffObj) {

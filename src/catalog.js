@@ -469,9 +469,109 @@ pdf(
     opt("keywords", "Palavras-chave (separadas por vírgula)", "Keywords (comma-separated)"),
   ],
 );
+pdf(
+  "pdf-to-pptx",
+  "PDF para PowerPoint",
+  "PDF to PowerPoint (.pptx)",
+  "Exporte páginas do PDF como apresentação editável do PowerPoint (.pptx).",
+  "Export PDF pages as an editable PowerPoint (.pptx) presentation.",
+  [
+    sel("mode", "Modo dos slides", "Slide mode", [
+      [
+        "hybrid",
+        "Slide visual fiel + notas/textos editáveis",
+        "Visual slide + editable text boxes",
+      ],
+      [
+        "text",
+        "Slides estruturados em caixas de texto editáveis",
+        "Structured editable text slides",
+      ],
+    ]),
+  ],
+);
+pdf(
+  "edit-pdf-text",
+  "Editar texto no PDF",
+  "Edit PDF text",
+  "Localize e substitua palavras ou frases diretamente nas páginas do PDF.",
+  "Find and replace words or phrases directly on PDF pages.",
+  [
+    opt("find", "Texto atual a localizar", "Text to find", "text", ""),
+    opt("replace", "Novo texto substituto", "Replacement text", "text", ""),
+    opt(
+      "pages",
+      "Páginas (vazio = todas, ex.: 1-3)",
+      "Pages (empty = all, e.g. 1-3)",
+      "text",
+      "",
+    ),
+    opt(
+      "bgColor",
+      "Cor de fundo sob o texto",
+      "Background cover color",
+      "color",
+      "#ffffff",
+    ),
+    opt("color", "Cor do novo texto", "New text color", "color", "#111111"),
+  ],
+);
+pdf(
+  "grayscale-pdf",
+  "PDF em Tons de Cinza",
+  "Grayscale PDF",
+  "Converta PDFs coloridos para escala de cinza ou P&B para impressão econômica.",
+  "Convert color PDFs to grayscale or black & white for economical printing.",
+  [
+    sel("mode", "Modo de conversão", "Conversion mode", [
+      [
+        "smart",
+        "Inteligente (mantém texto vetorial + imagens cinza)",
+        "Smart (keeps vector text + grayscale images)",
+      ],
+      [
+        "raster",
+        "Página inteira em tons de cinza",
+        "Full-page grayscale",
+      ],
+      [
+        "bw",
+        "Alto contraste Preto & Branco",
+        "High-contrast Black & White",
+      ],
+    ]),
+  ],
+);
+pdf(
+  "compare-pdf",
+  "Comparar 2 PDFs",
+  "Compare PDFs",
+  "Compare dois arquivos PDF página a página destacando diferenças de texto e layout.",
+  "Compare two PDF files page by page highlighting text and visual differences.",
+  [
+    sel("viewMode", "Modo de exibição do Diff", "Diff view mode", [
+      ["split", "Lado a lado (Split)", "Side by side (Split)"],
+      ["unified", "Unificado (Unified)", "Unified"],
+    ]),
+  ],
+  { multiple: true },
+);
+pdf(
+  "epub-pdf",
+  "EPUB ↔ PDF (E-books)",
+  "EPUB ↔ PDF converter",
+  "Converta e-books EPUB para PDF formatado ou transforme um PDF em livro EPUB 3.",
+  "Convert EPUB e-books to formatted PDF or turn a PDF into an EPUB 3 e-book.",
+  [
+    opt("title", "Título do livro (opcional)", "Book title (optional)", "text", ""),
+    opt("author", "Autor (opcional)", "Author (optional)", "text", ""),
+    num("fontSize", "Tamanho da fonte no PDF", "PDF font size", 12, 9, 22),
+  ],
+  { accept: ".epub,.pdf,application/epub+zip,application/pdf", multiple: false },
+);
 const image = (id, pt, en, desc, endesc, options = [], extra = {}) =>
   add("image", id, pt, en, desc, endesc, options, {
-    accept: "image/*,.heic,.heif",
+    accept: "image/*,.heic,.heif,.psd,.tif,.tiff,.bmp,.ico,.cur",
     multiple: true,
     ...extra,
   });
@@ -831,6 +931,70 @@ image(
   ],
   { multiple: false },
 );
+image(
+  "pro-image-converter",
+  "Converter PSD / TIFF / BMP / ICO",
+  "PSD / TIFF / BMP / ICO converter",
+  "Abra arquivos do Photoshop (.psd), TIFF (.tif), BMP e ícones (.ico) e converta para PNG, JPG ou WebP.",
+  "Open Photoshop (.psd), TIFF (.tif), BMP and icon (.ico) files and convert to PNG, JPG or WebP.",
+  [format, quality],
+  { accept: ".psd,.tif,.tiff,.bmp,.ico,.cur,image/*", multiple: true },
+);
+image(
+  "image-palette",
+  "Extrator de Paleta de Cores",
+  "Image Color Palette & Picker",
+  "Extraia as cores dominantes (HEX, RGB, CSS) e clique na imagem para capturar qualquer tom.",
+  "Extract dominant colors (HEX, RGB, CSS) and click the image to sample any pixel.",
+  [
+    num("count", "Quantidade de cores na paleta", "Number of palette colors", 8, 3, 16),
+    sel("exportFormat", "Formato de código", "Code export format", [
+      ["css", "Variáveis CSS (:root)", "CSS Variables (:root)"],
+      ["json", "JSON Estruturado", "Structured JSON"],
+      ["tailwind", "Tailwind CSS Config", "Tailwind CSS Config"],
+    ]),
+  ],
+  { multiple: false },
+);
+image(
+  "colorize-image",
+  "Colorir Foto P&B",
+  "Colorize B&W Photo",
+  "Restaure cores naturais em fotografias preto e branco preservando 100% da nitidez original.",
+  "Restore natural colors to black & white photos while preserving 100% of original sharpness.",
+  [
+    sel("preset", "Perfil cromático", "Color profile", [
+      ["natural", "Luz do dia / Natural", "Daylight / Natural"],
+      ["portrait", "Retrato / Tons de pele suaves", "Portrait / Warm skin tones"],
+      ["landscape", "Paisagem (Céu & Vegetação)", "Landscape (Sky & Foliage)"],
+      ["cinema", "Cinema (Teal & Amber)", "Cinematic (Teal & Amber)"],
+      ["vintage", "Filme Analógico / Quente", "Warm Analog Film"],
+    ]),
+    num("intensity", "Intensidade da cor (%)", "Color intensity (%)", 85, 20, 150),
+  ],
+  { multiple: true },
+);
+image(
+  "sticker-maker",
+  "Criador de Stickers (512×512 WebP)",
+  "Sticker Pack Maker (512×512 WebP)",
+  "Crie figurinhas 512×512 em WebP transparente com contorno branco para WhatsApp e Telegram.",
+  "Create 512×512 transparent WebP stickers with die-cut white outline for WhatsApp & Telegram.",
+  [
+    sel("cutout", "Fundo da imagem", "Image background", [
+      ["keep", "Manter como está", "Keep as is"],
+      ["auto", "Remover fundo sólido automaticamente", "Auto-remove solid background"],
+    ]),
+    num("outline", "Contorno branco de adesivo (px)", "White die-cut outline (px)", 12, 0, 36),
+    opt("caption", "Texto na figurinha (opcional)", "Sticker caption (optional)", "text", ""),
+    sel("grid", "Modo de entrada", "Input mode", [
+      ["single", "1 imagem = 1 figurinha", "1 image = 1 sticker"],
+      ["2x2", "Fatiar folha 2×2 (4 figurinhas)", "Slice 2×2 sheet (4 stickers)"],
+      ["3x3", "Fatiar folha 3×3 (9 figurinhas)", "Slice 3×3 sheet (9 stickers)"],
+    ]),
+  ],
+  { multiple: true },
+);
 const media = (id, pt, en, desc, endesc, options = [], extra = {}) =>
   add("media", id, pt, en, desc, endesc, options, {
     accept: "video/*,audio/*,.mkv,.mov,.avi,.m4a,.ogg,.flac",
@@ -1066,6 +1230,93 @@ media(
   "Record voiceovers, notes and meetings with live waveform in your browser.",
   [],
   { input: "record" },
+);
+media(
+  "text-to-speech",
+  "Texto para Voz (TTS)",
+  "Text to Speech (TTS Audio)",
+  "Converta textos em áudio falado (WAV) com ajuste de timbre, velocidade e prévia de voz nativa.",
+  "Convert text into spoken audio (WAV) with voice profile, speed and native speech preview.",
+  [
+    area(
+      "content",
+      "Texto para narrar",
+      "Text to speak",
+      "Olá! Bem-vindo ao TinyLab, sua suíte privada de ferramentas.",
+    ),
+    sel("voiceProfile", "Timbre do arquivo de áudio", "Audio file voice profile", [
+      ["female", "Voz Clara / Aguda", "Clear / Higher pitch"],
+      ["male", "Voz Grave / Locutor", "Deep / Baritone"],
+      ["warm", "Voz Suave / Natural", "Warm / Balanced"],
+      ["robot", "Sintetizador Retro", "Retro Synth"],
+    ]),
+    sel("rate", "Velocidade da fala", "Speech rate", [
+      ["0.85", "0.85× (Pausada / Calm)"],
+      ["1", "1.0× (Normal)"],
+      ["1.2", "1.2× (Dinâmica / Fast)"],
+      ["1.4", "1.4× (Rápida / Rapid)"],
+    ]),
+  ],
+  { input: "text" },
+);
+media(
+  "add-audio-video",
+  "Adicionar Música em Vídeo",
+  "Add Audio / Music to Video",
+  "Combine um vídeo com uma faixa de música ou locução (.mp3/.wav), substituindo ou mixando o áudio.",
+  "Combine a video with a music or voiceover track, replacing or mixing the original audio.",
+  [
+    sel("mode", "Modo de áudio", "Audio mode", [
+      ["replace", "Substituir áudio original do vídeo", "Replace original video audio"],
+      ["mix", "Mixar música com áudio original do vídeo", "Mix music with original video audio"],
+    ]),
+    num("musicVol", "Volume da faixa de áudio (%)", "Audio track volume (%)", 80, 10, 200),
+    sel("loop", "Se o áudio for mais curto", "If audio is shorter", [
+      ["yes", "Repetir áudio em loop até o fim do vídeo", "Loop audio until video ends"],
+      ["no", "Encerrar junto com a trilha", "Stop when audio ends"],
+    ]),
+  ],
+  { multiple: true, accept: "video/*,audio/*,.mp4,.webm,.mov,.mkv,.mp3,.wav,.m4a,.ogg" },
+);
+media(
+  "reverse-video",
+  "Inverter Vídeo (Rebobinar)",
+  "Reverse Video & Audio",
+  "Reproduza vídeos de trás para frente com opção de inverter ou silenciar o áudio.",
+  "Play videos backwards with optional reversed or muted audio.",
+  [
+    sel("audioMode", "Áudio do vídeo invertido", "Reversed video audio", [
+      ["reverse", "Inverter áudio junto", "Reverse audio too"],
+      ["mute", "Silenciar áudio (Mudo)", "Mute audio"],
+    ]),
+  ],
+);
+media(
+  "denoise-audio",
+  "Limpar Ruído de Voz (Denoise)",
+  "Audio Denoise & Voice Enhancer",
+  "Reduza chiados de fundo, realce a voz humana para podcasts ou atenue vocais centrais.",
+  "Reduce background hiss, boost podcast voice clarity or attenuate center vocals.",
+  [
+    sel("mode", "Filtro de estúdio", "Studio filter", [
+      [
+        "denoise",
+        "Reduzir ruído de fundo (FFT Denoise)",
+        "Reduce background noise (FFT Denoise)",
+      ],
+      [
+        "podcast",
+        "Realçar voz + Compressor (Podcast)",
+        "Voice enhancer + Compressor (Podcast)",
+      ],
+      [
+        "karaoke",
+        "Atenuar vocal central (Karaokê estéreo)",
+        "Attenuate center vocal (Stereo Karaoke)",
+      ],
+    ]),
+    audioFormat,
+  ],
 );
 media(
   "clipcut-studio",
@@ -1787,6 +2038,150 @@ ai(
     aiTier,
   ],
 );
+ai(
+  "ai-resume",
+  "Gerador de Currículo e Carta",
+  "AI Resume & Cover Letter",
+  "Crie cartas de apresentação, resumos profissionais de currículo ou otimize experiências para vagas.",
+  "Write cover letters, resume summaries or achievement bullets tailored to a job.",
+  [
+    area(
+      "content",
+      "Sua experiência, habilidades e vaga desejada",
+      "Your experience, skills & target role",
+    ),
+    sel("docType", "Documento", "Document type", [
+      ["cover", "Carta de Apresentação (Cover Letter)", "Cover Letter"],
+      [
+        "resume",
+        "Currículo Estruturado (ATS-Friendly)",
+        "Structured Resume (ATS-Friendly)",
+      ],
+      [
+        "linkedin",
+        "Resumo Sobre / Bio para LinkedIn",
+        "LinkedIn About / Bio",
+      ],
+    ]),
+    aiTier,
+  ],
+);
+ai(
+  "ai-brand",
+  "Nomes de Marca e Slogan",
+  "Business Name & Slogan Generator",
+  "Gere ideias de nomes de empresas, produtos, domínios e slogans memoráveis com posicionamento.",
+  "Generate business names, product names and memorable slogans with positioning.",
+  [
+    area(
+      "content",
+      "Nicho, público-alvo e estilo da marca",
+      "Niche, target audience & brand vibe",
+    ),
+    sel("style", "Estilo das sugestões", "Naming style", [
+      ["modern", "Moderno, curto e tech", "Modern, short & tech"],
+      [
+        "trust",
+        "Sólido, confiável e corporativo",
+        "Trusted & corporate",
+      ],
+      [
+        "creative",
+        "Criativo + Slogans de impacto",
+        "Creative + Punchy slogans",
+      ],
+    ]),
+    aiTier,
+  ],
+);
+ai(
+  "ai-legal",
+  "Gerador de Termos e Privacidade",
+  "Terms & Privacy Policy Generator",
+  "Estruture minutas de Termos de Uso, Política de Privacidade (LGPD/GDPR) ou Política de Reembolso.",
+  "Draft Terms of Service, Privacy Policy (LGPD/GDPR) or Refund Policy templates.",
+  [
+    area(
+      "content",
+      "Nome do site/app, dados coletados e regras principais",
+      "Site/app name, collected data & key rules",
+    ),
+    sel("legalKind", "Tipo de política", "Policy type", [
+      [
+        "privacy",
+        "Política de Privacidade (LGPD / GDPR)",
+        "Privacy Policy (LGPD / GDPR)",
+      ],
+      ["terms", "Termos e Condições de Uso", "Terms of Service"],
+      [
+        "refund",
+        "Política de Troca, Cancelamento e Reembolso",
+        "Refund & Cancellation Policy",
+      ],
+    ]),
+    aiTier,
+  ],
+);
+ai(
+  "ai-transcript-summary",
+  "Resumidor de Reunião / Aula",
+  "Meeting & Transcript Summarizer",
+  "Transforme transcrições de vídeos, aulas ou reuniões em ata executiva com decisões e tarefas.",
+  "Turn video, lecture or meeting transcripts into executive notes with action items.",
+  [
+    area(
+      "content",
+      "Cole a transcrição da reunião, aula ou vídeo",
+      "Paste the meeting, lecture or video transcript",
+    ),
+    sel("noteStyle", "Formato do resumo", "Summary format", [
+      [
+        "minutes",
+        "Ata de Reunião + Tarefas (Action Items)",
+        "Meeting Minutes + Action Items",
+      ],
+      [
+        "study",
+        "Resumo de Aula em Tópicos-Chave",
+        "Lecture Key Takeaways",
+      ],
+      ["timestamps", "Destaques em Capítulos", "Chapter Highlights"],
+    ]),
+    aiTier,
+  ],
+);
+ai(
+  "ai-code",
+  "Explicador de Código e SQL",
+  "AI Code Explainer & SQL Generator",
+  "Explique trechos de código linha a linha, encontre bugs ou gere consultas SQL e scripts.",
+  "Explain code snippets line by line, spot bugs or generate SQL queries and scripts.",
+  [
+    area(
+      "content",
+      "Cole o código ou descreva a consulta SQL / script desejado",
+      "Paste code or describe the SQL query / script needed",
+    ),
+    sel("codeTask", "Tarefa", "Task", [
+      [
+        "explain",
+        "Explicar código passo a passo",
+        "Explain code step by step",
+      ],
+      [
+        "sql",
+        "Gerar consulta SQL otimizada",
+        "Generate optimized SQL query",
+      ],
+      [
+        "refactor",
+        "Revisar bugs e sugerir refatoração",
+        "Spot bugs & suggest refactoring",
+      ],
+    ]),
+    aiTier,
+  ],
+);
 export const tools = TOOLS;
 export function findTool(id) {
   return tools.find((t) => t.id === id);
@@ -1807,18 +2202,24 @@ export const synonyms = {
   planilha: "excel csv spreadsheet",
   senha: "password proteger",
   recortar: "cortar crop trim",
-  audio: "audio som musica voz microfone",
-  video: "video filme reels shorts tiktok clipcut",
+  audio: "audio som musica voz microfone tts denoise",
+  video: "video filme reels shorts tiktok clipcut reverse",
   baixar: "download baixou youtube instagram tiktok",
   download: "baixar baixou video audio",
   apagar: "remover tarjar redact inpaint objeto marca",
-  limpar: "clean remover metadados strip",
+  limpar: "clean remover metadados strip denoise",
   vetor: "svg vetorizar vectorize",
   carrossel: "instagram grade split carousel",
   avatar: "perfil pfp foto",
   print: "screenshot captura mockup meme",
-  codigo: "barcode qr ean128 jwt regex diff",
+  codigo: "barcode qr ean128 jwt regex diff sql",
   legenda: "srt subtitles caption queimar hardcode",
+  slides: "powerpoint pptx apresentacao",
+  ebook: "epub livro kindle pdf",
+  figurinha: "sticker whatsapp telegram webp",
+  photoshop: "psd tiff bmp ico",
+  paleta: "cores hex rgb color picker eyedropper",
+  curriculo: "resume cv carta cover letter",
 };
 export function searchTools(query, category = "all", lang = "pt") {
   const terms = normalize(query).split(/\s+/).filter(Boolean);

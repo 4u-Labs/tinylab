@@ -567,6 +567,456 @@ export function vectorizeToSvg(data, origW, origH, o = {}) {
   return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${origW} ${origH}" width="${origW}" height="${origH}">\n${paths.join("\n")}\n</svg>`;
 }
 
+function unpackBits(src, offset, expectedBytes) {
+  const out = new Uint8Array(expectedBytes);
+  let pos = offset,
+    dst = 0;
+  while (dst < expectedBytes && pos < src.length) {
+    let n = src[pos++];
+    if (n > 127) n -= 256;
+    if (n >= 0) {
+      const count = n + 1;
+      for (let i = 0; i < count && dst < expectedBytes && pos < src.length; i++)
+        out[dst++] = src[pos++];
+    } else if (n !== -128) {
+      const count = 1 - n;
+      const val = src[pos++];
+      for (let i = 0; i < count && dst < expectedBytes; i++) out[dst++] = val;
+    }
+  }
+  return { data: out, nextOffset: pos };
+}
+
+export function decodePsd(bytes) {
+  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  if (
+    u8.length < 26 ||
+    u8[0] !== 0x38 ||
+    u8[1] !== 0x42 ||
+    u8[2] !== 0x50 ||
+    u8[3] !== 0x53
+  ) {
+    throw new Error("Arquivo PSD inválido / Invalid PSD file.");
+  }
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  const version = dv.getUint16(4, false);
+  const channels = dv.getUint16(12, false);
+  const height = dv.getUint32(14, false);
+  const width = dv.getUint32(18, false);
+  const depth = dv.getUint16(22, false);
+  const colorMode = dv.getUint16(24, false);
+  if (!width || !height || width > 12000 || height > 12000) {
+    throw new Error("Dimensões PSD não suportadas / Unsupported PSD dimensions.");
+  }
+  let pos = 26;
+  const colorModeLen = dv.getUint32(pos, false);
+  pos += 4 + colorModeLen;
+  const resourcesLen = dv.getUint32(pos, false);
+  pos += 4 + resourcesLen;
+  if (version === 2) {
+    const layerLen = Number(dv.getBigUint64(pos, false));
+    pos += 8 + layerLen;
+  } else {
+    const layerLen = dv.getUint32(pos, false);
+    pos += 4 + layerLen;
+  }
+  const compression = dv.getUint16(pos, false);
+  pos += 2;
+  const pixels = width * height;
+  const bytesPerChannel = depth === 16 ? pixels * 2 : pixels;
+  const chCount = Math.min(channels, 4);
+  const planes = [];
+  if (compression === 0) {
+    for (let c = 0; c < chCount; c++) {
+      const slice = u8.subarray(pos, pos + bytesPerChannel);
+      pos += bytesPerChannel;
+      if (depth === 16) {
+        const p8 = new Uint8Array(pixels);
+        for (let i = 0; i < pixels; i++) p8[i] = slice[i * 2];
+        planes.push(p8);
+      } else {
+        planes.push(slice);
+      }
+    }
+  } else if (compression === 1) {
+    pos += channels * height * (version === 2 ? 4 : 2);
+    for (let c = 0; c < chCount; c++) {
+      const unpacked = unpackBits(u8, pos, bytesPerChannel);
+      pos = unpacked.nextOffset;
+      if (depth === 16) {
+        const p8 = new Uint8Array(pixels);
+        for (let i = 0; i < pixels; i++) p8[i] = unpacked.data[i * 2];
+        planes.push(p8);
+      } else {
+        planes.push(unpacked.data);
+      }
+    }
+  } else {
+    throw new Error(
+      "Compressão PSD ZIP não suportada; salve com Maximizar Compatibilidade / Unsupported PSD compression.",
+    );
+  }
+  const rgba = new Uint8ClampedArray(pixels * 4);
+  for (let i = 0; i < pixels; i++) {
+    if (colorMode === 1 || planes.length === 1) {
+      const v = planes[0][i] ?? 0;
+      rgba[i * 4] = v;
+      rgba[i * 4 + 1] = v;
+      rgba[i * 4 + 2] = v;
+      rgba[i * 4 + 3] = planes[1] ? planes[1][i] : 255;
+    } else if (colorMode === 4 && planes.length >= 4) {
+      const c = planes[0][i] / 255,
+        m = planes[1][i] / 255,
+        y = planes[2][i] / 255,
+        k = planes[3][i] / 255;
+      rgba[i * 4] = Math.round(255 * c * k);
+      rgba[i * 4 + 1] = Math.round(255 * m * k);
+      rgba[i * 4 + 2] = Math.round(255 * y * k);
+      rgba[i * 4 + 3] = 255;
+    } else {
+      rgba[i * 4] = planes[0]?.[i] ?? 0;
+      rgba[i * 4 + 1] = planes[1]?.[i] ?? 0;
+      rgba[i * 4 + 2] = planes[2]?.[i] ?? 0;
+      rgba[i * 4 + 3] = planes[3] ? planes[3][i] : 255;
+    }
+  }
+  return { width, height, data: rgba };
+}
+
+export function decodeTiff(bytes) {
+  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  if (u8.length < 8) throw new Error("Arquivo TIFF inválido / Invalid TIFF file.");
+  const le = u8[0] === 0x49 && u8[1] === 0x49;
+  const be = u8[0] === 0x4d && u8[1] === 0x4d;
+  if (!le && !be) throw new Error("Cabeçalho TIFF inválido / Invalid TIFF header.");
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  if (dv.getUint16(2, le) !== 42)
+    throw new Error("Assinatura TIFF inválida / Invalid TIFF magic.");
+  const ifdOffset = dv.getUint32(4, le);
+  const numEntries = dv.getUint16(ifdOffset, le);
+  const typeSize = { 1: 1, 2: 1, 3: 2, 4: 4, 5: 8 };
+  const readValues = (type, count, valOffset) => {
+    const sz = (typeSize[type] || 1) * count;
+    const off = sz <= 4 ? valOffset : dv.getUint32(valOffset, le);
+    const vals = [];
+    for (let i = 0; i < count; i++) {
+      if (type === 1) vals.push(u8[off + i]);
+      else if (type === 3) vals.push(dv.getUint16(off + i * 2, le));
+      else if (type === 4) vals.push(dv.getUint32(off + i * 4, le));
+    }
+    return vals;
+  };
+  const tags = {};
+  for (let i = 0; i < numEntries; i++) {
+    const base = ifdOffset + 2 + i * 12;
+    const tag = dv.getUint16(base, le);
+    const type = dv.getUint16(base + 2, le);
+    const count = dv.getUint32(base + 4, le);
+    tags[tag] = readValues(type, count, base + 8);
+  }
+  const width = tags[256]?.[0] || 0;
+  const height = tags[257]?.[0] || 0;
+  if (!width || !height)
+    throw new Error("TIFF sem dimensões válidas / Missing TIFF dimensions.");
+  const compression = tags[259]?.[0] || 1;
+  const photometric = tags[262]?.[0] ?? 2;
+  const stripOffsets = tags[273] || [];
+  const samplesPerPixel = tags[277]?.[0] || (photometric === 2 ? 3 : 1);
+  const rowsPerStrip = tags[278]?.[0] || height;
+  const stripByteCounts = tags[279] || [];
+  const bitsPerSample = tags[258]?.[0] || 8;
+  const bytesPerSample = Math.max(1, bitsPerSample >> 3);
+  const rowBytes = width * samplesPerPixel * bytesPerSample;
+  const raw = new Uint8Array(height * rowBytes);
+  let dstRow = 0;
+  for (let s = 0; s < stripOffsets.length && dstRow < height; s++) {
+    const rows = Math.min(rowsPerStrip, height - dstRow);
+    const expected = rows * rowBytes;
+    const off = stripOffsets[s];
+    let stripData;
+    if (compression === 1) {
+      stripData = u8.subarray(off, off + (stripByteCounts[s] || expected));
+    } else if (compression === 32773) {
+      stripData = unpackBits(u8, off, expected).data;
+    } else {
+      throw new Error(
+        "Compressão TIFF não suportada (use sem compressão ou PackBits) / Unsupported TIFF compression.",
+      );
+    }
+    raw.set(
+      stripData.subarray(0, Math.min(stripData.length, expected)),
+      dstRow * rowBytes,
+    );
+    dstRow += rows;
+  }
+  const rgba = new Uint8ClampedArray(width * height * 4);
+  for (let i = 0; i < width * height; i++) {
+    const p = i * samplesPerPixel * bytesPerSample;
+    if (samplesPerPixel >= 3) {
+      rgba[i * 4] = raw[p];
+      rgba[i * 4 + 1] = raw[p + bytesPerSample];
+      rgba[i * 4 + 2] = raw[p + bytesPerSample * 2];
+      rgba[i * 4 + 3] =
+        samplesPerPixel >= 4 ? raw[p + bytesPerSample * 3] : 255;
+    } else {
+      let g = raw[p];
+      if (photometric === 0) g = 255 - g;
+      rgba[i * 4] = g;
+      rgba[i * 4 + 1] = g;
+      rgba[i * 4 + 2] = g;
+      rgba[i * 4 + 3] = samplesPerPixel === 2 ? raw[p + bytesPerSample] : 255;
+    }
+  }
+  return { width, height, data: rgba };
+}
+
+export function decodeIco(bytes) {
+  const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+  if (u8.length < 22 || u8[0] !== 0 || u8[1] !== 0 || (u8[2] !== 1 && u8[2] !== 2))
+    throw new Error("Arquivo ICO inválido / Invalid ICO file.");
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+  const count = dv.getUint16(4, true);
+  let best = null;
+  for (let i = 0; i < count; i++) {
+    const base = 6 + i * 16;
+    if (base + 16 > u8.length) break;
+    const w = u8[base] || 256;
+    const h = u8[base + 1] || 256;
+    const bpp = dv.getUint16(base + 6, true);
+    const size = dv.getUint32(base + 8, true);
+    const offset = dv.getUint32(base + 12, true);
+    const score = w * h * Math.max(1, bpp);
+    if (!best || score > best.score) best = { w, h, size, offset, score };
+  }
+  if (!best) throw new Error("Nenhuma entrada ICO encontrada / No ICO entries.");
+  const slice = u8.subarray(best.offset, best.offset + best.size);
+  if (
+    slice[0] === 0x89 &&
+    slice[1] === 0x50 &&
+    slice[2] === 0x4e &&
+    slice[3] === 0x47
+  ) {
+    return { pngBytes: slice };
+  }
+  const bdv = new DataView(slice.buffer, slice.byteOffset, slice.byteLength);
+  const headerSize = bdv.getUint32(0, true);
+  const width = bdv.getInt32(4, true);
+  const height = Math.floor(Math.abs(bdv.getInt32(8, true)) / 2);
+  const bpp = bdv.getUint16(14, true);
+  const rgba = new Uint8ClampedArray(width * height * 4);
+  const rowStride = Math.ceil((width * bpp) / 32) * 4;
+  let pixelBase = headerSize;
+  if (bpp <= 8) pixelBase += (1 << bpp) * 4;
+  for (let y = 0; y < height; y++) {
+    const srcY = height - 1 - y;
+    const rowOff = pixelBase + srcY * rowStride;
+    for (let x = 0; x < width; x++) {
+      const dst = (y * width + x) * 4;
+      if (bpp === 32) {
+        const p = rowOff + x * 4;
+        rgba[dst] = slice[p + 2];
+        rgba[dst + 1] = slice[p + 1];
+        rgba[dst + 2] = slice[p];
+        rgba[dst + 3] = slice[p + 3];
+      } else if (bpp === 24) {
+        const p = rowOff + x * 3;
+        rgba[dst] = slice[p + 2];
+        rgba[dst + 1] = slice[p + 1];
+        rgba[dst + 2] = slice[p];
+        rgba[dst + 3] = 255;
+      }
+    }
+  }
+  return { width, height, data: rgba };
+}
+
+export async function loadAnyImage(file) {
+  const head = new Uint8Array(await file.slice(0, 8).arrayBuffer());
+  const ext = (file.name || "").split(".").pop().toLowerCase();
+  const isPsd =
+    ext === "psd" ||
+    (head[0] === 0x38 && head[1] === 0x42 && head[2] === 0x50 && head[3] === 0x53);
+  const isTiff =
+    ext === "tif" ||
+    ext === "tiff" ||
+    (head[0] === 0x49 && head[1] === 0x49 && head[2] === 0x2a && head[3] === 0x00) ||
+    (head[0] === 0x4d && head[1] === 0x4d && head[2] === 0x00 && head[3] === 0x2a);
+  const isIco =
+    ext === "ico" ||
+    ext === "cur" ||
+    (head[0] === 0x00 &&
+      head[1] === 0x00 &&
+      (head[2] === 0x01 || head[2] === 0x02) &&
+      head[3] === 0x00);
+  if (isPsd || isTiff || isIco) {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const decoded = isPsd
+      ? decodePsd(bytes)
+      : isTiff
+        ? decodeTiff(bytes)
+        : decodeIco(bytes);
+    if (decoded.pngBytes) {
+      return bitmap(new Blob([decoded.pngBytes], { type: "image/png" }));
+    }
+    const c = canvas(decoded.width, decoded.height);
+    const g = c.getContext("2d");
+    const idata = g.createImageData(decoded.width, decoded.height);
+    idata.data.set(decoded.data);
+    g.putImageData(idata, 0, 0);
+    return c;
+  }
+  return bitmap(file);
+}
+
+function rgbToHsl(r, g, b) {
+  const rn = r / 255,
+    gn = g / 255,
+    bn = b / 255;
+  const max = Math.max(rn, gn, bn),
+    min = Math.min(rn, gn, bn);
+  let h = 0,
+    s = 0;
+  const l = (max + min) / 2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+    switch (max) {
+      case rn:
+        h = (gn - bn) / d + (gn < bn ? 6 : 0);
+        break;
+      case gn:
+        h = (bn - rn) / d + 2;
+        break;
+      default:
+        h = (rn - gn) / d + 4;
+    }
+    h /= 6;
+  }
+  return [Math.round(h * 360), Math.round(s * 100), Math.round(l * 100)];
+}
+
+export function extractColorPalette(rgba, w, h, count = 8) {
+  const k = Math.max(2, Math.min(16, Number(count || 8)));
+  const totalPx = w * h;
+  const stride = Math.max(1, Math.floor(totalPx / 12000));
+  const samples = [];
+  for (let i = 0; i < totalPx; i += stride) {
+    if (rgba[i * 4 + 3] < 96) continue;
+    samples.push([rgba[i * 4], rgba[i * 4 + 1], rgba[i * 4 + 2]]);
+  }
+  if (!samples.length) samples.push([128, 128, 128]);
+  const centroids = [[...samples[0]]];
+  while (centroids.length < Math.min(k, samples.length)) {
+    let bestPt = samples[0],
+      bestDist = -1;
+    for (let i = 0; i < samples.length; i += Math.max(1, Math.floor(samples.length / 300))) {
+      const s = samples[i];
+      let minD = Infinity;
+      for (const c of centroids) {
+        const d = (s[0] - c[0]) ** 2 + (s[1] - c[1]) ** 2 + (s[2] - c[2]) ** 2;
+        if (d < minD) minD = d;
+      }
+      if (minD > bestDist) {
+        bestDist = minD;
+        bestPt = s;
+      }
+    }
+    centroids.push([...bestPt]);
+  }
+  const counts = new Uint32Array(centroids.length);
+  for (let iter = 0; iter < 8; iter++) {
+    const sums = centroids.map(() => [0, 0, 0, 0]);
+    counts.fill(0);
+    for (const s of samples) {
+      let best = 0,
+        bestD = Infinity;
+      for (let c = 0; c < centroids.length; c++) {
+        const d =
+          (s[0] - centroids[c][0]) ** 2 +
+          (s[1] - centroids[c][1]) ** 2 +
+          (s[2] - centroids[c][2]) ** 2;
+        if (d < bestD) {
+          bestD = d;
+          best = c;
+        }
+      }
+      sums[best][0] += s[0];
+      sums[best][1] += s[1];
+      sums[best][2] += s[2];
+      sums[best][3]++;
+      counts[best]++;
+    }
+    for (let c = 0; c < centroids.length; c++) {
+      if (sums[c][3] > 0) {
+        centroids[c][0] = Math.round(sums[c][0] / sums[c][3]);
+        centroids[c][1] = Math.round(sums[c][1] / sums[c][3]);
+        centroids[c][2] = Math.round(sums[c][2] / sums[c][3]);
+      }
+    }
+  }
+  const totalSampled = samples.length || 1;
+  return centroids
+    .map((rgb, i) => ({
+      rgb,
+      hex:
+        "#" +
+        rgb.map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, "0")).join(""),
+      hsl: rgbToHsl(rgb[0], rgb[1], rgb[2]),
+      percent: Number(((counts[i] / totalSampled) * 100).toFixed(1)),
+    }))
+    .filter((c) => c.percent > 0)
+    .sort((a, b) => b.percent - a.percent);
+}
+
+export function colorizeImageData(rgba, w, h, preset = "natural", intensity = 85) {
+  const strength = Math.max(0.1, Math.min(1.6, Number(intensity || 85) / 100));
+  for (let y = 0; y < h; y++) {
+    const ny = y / Math.max(1, h - 1);
+    for (let x = 0; x < w; x++) {
+      const idx = (y * w + x) * 4;
+      const r0 = rgba[idx],
+        g0 = rgba[idx + 1],
+        b0 = rgba[idx + 2];
+      const Y = 0.299 * r0 + 0.587 * g0 + 0.114 * b0;
+      const l = Y / 255;
+      const midWeight = Math.sin(Math.pow(l, 0.85) * Math.PI);
+      let cb = 0,
+        cr = 0;
+      if (preset === "portrait") {
+        cb = -18 * midWeight;
+        cr = 26 * midWeight * (0.65 + 0.35 * Math.sin(l * Math.PI));
+      } else if (preset === "landscape") {
+        const sky = Math.max(0, 1 - ny * 1.9) * Math.pow(l, 0.7);
+        const ground = Math.max(0, (ny - 0.32) * 1.45) * midWeight;
+        cb = 26 * sky - 20 * ground;
+        cr = -10 * sky - 8 * ground + 12 * ground * l;
+      } else if (preset === "cinema") {
+        const shadow = Math.max(0, 1 - l * 1.7) * midWeight;
+        const high = Math.max(0, (l - 0.35) * 1.5) * midWeight;
+        cb = 24 * shadow - 22 * high;
+        cr = -14 * shadow + 26 * high;
+      } else if (preset === "vintage") {
+        cb = -22 * midWeight;
+        cr = 20 * midWeight;
+      } else {
+        const upper = Math.max(0, 1 - ny * 1.8) * l;
+        const warmMid = midWeight * (0.4 + 0.6 * ny);
+        cb = 16 * upper - 14 * warmMid;
+        cr = -6 * upper + 18 * warmMid;
+      }
+      cb *= strength;
+      cr *= strength;
+      rgba[idx] = Math.max(0, Math.min(255, Math.round(Y + 1.402 * cr)));
+      rgba[idx + 1] = Math.max(
+        0,
+        Math.min(255, Math.round(Y - 0.344136 * cb - 0.714136 * cr)),
+      );
+      rgba[idx + 2] = Math.max(0, Math.min(255, Math.round(Y + 1.772 * cb)));
+    }
+  }
+  return rgba;
+}
+
 async function encode(c, format = "png", quality = 0.9) {
   if (format === "avif") {
     const { default: factory } = await import(asset("avif/avif_enc.js"));
@@ -599,7 +1049,7 @@ export async function run(id, files, o, ctx = {}) {
     g.fillStyle = o.color;
     g.fillRect(0, 0, c.width, c.height);
     for (let i = 0; i < files.length; i++) {
-      const img = await bitmap(files[i]),
+      const img = await loadAnyImage(files[i]),
         scale = Math.max(cell / img.width, cell / img.height);
       g.save();
       g.beginPath();
@@ -630,7 +1080,7 @@ export async function run(id, files, o, ctx = {}) {
     check(ctx);
     const file = files[i];
     progress(ctx, (i / files.length) * 100);
-    const img = await bitmap(file);
+    const img = await loadAnyImage(file);
     try {
       let w = img.width,
         h = img.height,
@@ -972,6 +1422,192 @@ export async function run(id, files, o, ctx = {}) {
         );
         continue;
       }
+      if (id === "image-palette") {
+        const sw = Math.min(640, w),
+          sh = Math.max(1, Math.round((h * sw) / w));
+        const sc = canvas(sw, sh),
+          sg = sc.getContext("2d");
+        sg.drawImage(img, 0, 0, sw, sh);
+        const rgba = sg.getImageData(0, 0, sw, sh).data;
+        const palette = extractColorPalette(rgba, sw, sh, Number(o.count || 8));
+        const cardW = 1080,
+          imgBoxH = 480,
+          swatchH = 220,
+          cardH = imgBoxH + swatchH;
+        const card = canvas(cardW, cardH),
+          cg = card.getContext("2d");
+        cg.fillStyle = "#111018";
+        cg.fillRect(0, 0, cardW, cardH);
+        const fit = Math.min((cardW - 64) / w, (imgBoxH - 48) / h);
+        const dw = w * fit,
+          dh = h * fit;
+        cg.drawImage(img, (cardW - dw) / 2, (imgBoxH - dh) / 2, dw, dh);
+        const cols = palette.length;
+        const pad = 28,
+          gap = 12;
+        const cellW = (cardW - pad * 2 - gap * (cols - 1)) / cols;
+        palette.forEach((p, idx) => {
+          const sx = pad + idx * (cellW + gap);
+          const sy = imgBoxH + 10;
+          cg.fillStyle = p.hex;
+          cg.beginPath();
+          cg.roundRect(sx, sy, cellW, 128, 12);
+          cg.fill();
+          cg.fillStyle = "#f2eefc";
+          cg.font = "700 15px ui-monospace, monospace";
+          cg.textAlign = "center";
+          cg.fillText(p.hex.toUpperCase(), sx + cellW / 2, sy + 154);
+          cg.fillStyle = "#9b93ad";
+          cg.font = "500 12px sans-serif";
+          cg.fillText(`${p.percent}%`, sx + cellW / 2, sy + 174);
+        });
+        let codeText = "";
+        let ext = "css";
+        if (o.exportFormat === "json") {
+          codeText = JSON.stringify(palette, null, 2);
+          ext = "json";
+        } else if (o.exportFormat === "tailwind") {
+          const obj = Object.fromEntries(
+            palette.map((p, idx) => [`brand-${idx + 1}`, p.hex]),
+          );
+          codeText = `// tailwind.config.js\nmodule.exports = {\n  theme: {\n    extend: {\n      colors: ${JSON.stringify(obj, null, 8)}\n    }\n  }\n};\n`;
+          ext = "js";
+        } else {
+          codeText = `:root {\n${palette.map((p, idx) => `  --color-${idx + 1}: ${p.hex}; /* rgb(${p.rgb.join(", ")}) · ${p.percent}% */`).join("\n")}\n}\n`;
+          ext = "css";
+        }
+        results.push(
+          {
+            ...output(
+              await toBlob(card, "image/png"),
+              `${baseName(file.name)}-palette.png`,
+            ),
+            palette,
+          },
+          {
+            ...textOutput(
+              codeText,
+              `${baseName(file.name)}-palette.${ext}`,
+              ext === "json" ? "application/json" : "text/plain",
+            ),
+            palette,
+          },
+        );
+        continue;
+      }
+      if (id === "colorize-image") {
+        const cc = canvas(w, h),
+          cg = cc.getContext("2d");
+        cg.drawImage(img, 0, 0, w, h);
+        const px = cg.getImageData(0, 0, w, h);
+        colorizeImageData(px.data, w, h, o.preset || "natural", Number(o.intensity || 85));
+        cg.putImageData(px, 0, 0);
+        results.push({
+          ...output(
+            await toBlob(cc, "image/png"),
+            `${baseName(file.name)}-colorized.png`,
+          ),
+          width: w,
+          height: h,
+          originalSize: file.size,
+        });
+        continue;
+      }
+      if (id === "sticker-maker") {
+        const gridCols = o.grid === "3x3" ? 3 : o.grid === "2x2" ? 2 : 1;
+        const gridRows = gridCols;
+        const cellW = Math.floor(w / gridCols),
+          cellH = Math.floor(h / gridRows);
+        const outlinePx = Math.max(0, Math.min(36, Number(o.outline ?? 12)));
+        const caption = String(o.caption || "").trim();
+        const stickerOutputs = [];
+        for (let r = 0; r < gridRows; r++) {
+          for (let col = 0; col < gridCols; col++) {
+            const S = 512;
+            const pad = outlinePx + 20;
+            const maxBox = S - pad * 2 - (caption ? 48 : 0);
+            const scale = Math.min(maxBox / cellW, maxBox / cellH);
+            const dw = Math.max(1, Math.round(cellW * scale)),
+              dh = Math.max(1, Math.round(cellH * scale));
+            const dx = Math.round((S - dw) / 2),
+              dy = Math.round((S - (caption ? 36 : 0) - dh) / 2);
+            const subj = canvas(S, S),
+              sg = subj.getContext("2d");
+            sg.drawImage(
+              img,
+              col * cellW,
+              r * cellH,
+              cellW,
+              cellH,
+              dx,
+              dy,
+              dw,
+              dh,
+            );
+            if (o.cutout === "auto") {
+              const px = sg.getImageData(0, 0, S, S);
+              removeBackground(px.data, S, S, 42, "outer", 16);
+              sg.putImageData(px, 0, 0);
+            }
+            const st = canvas(S, S),
+              stg = st.getContext("2d");
+            if (outlinePx > 0) {
+              const sil = canvas(S, S),
+                silG = sil.getContext("2d");
+              silG.drawImage(subj, 0, 0);
+              silG.globalCompositeOperation = "source-in";
+              silG.fillStyle = "#ffffff";
+              silG.fillRect(0, 0, S, S);
+              stg.save();
+              stg.shadowColor = "rgba(0,0,0,0.32)";
+              stg.shadowBlur = 12;
+              stg.shadowOffsetY = 4;
+              const steps = 16;
+              for (let a = 0; a < steps; a++) {
+                const ang = (a / steps) * Math.PI * 2;
+                stg.drawImage(
+                  sil,
+                  Math.cos(ang) * outlinePx,
+                  Math.sin(ang) * outlinePx,
+                );
+              }
+              stg.restore();
+            }
+            stg.drawImage(subj, 0, 0);
+            if (caption) {
+              stg.save();
+              stg.font = '900 38px Impact, "Arial Black", sans-serif';
+              stg.textAlign = "center";
+              stg.lineJoin = "round";
+              stg.lineWidth = 10;
+              stg.strokeStyle = "#000000";
+              stg.fillStyle = "#ffffff";
+              stg.strokeText(caption, S / 2, S - 22, S - 32);
+              stg.fillText(caption, S / 2, S - 22, S - 32);
+              stg.restore();
+            }
+            const webpBlob = await toBlob(st, "image/webp", 0.86);
+            const suffix =
+              gridCols > 1 ? `-${r * gridCols + col + 1}` : "";
+            const outItem = output(
+              webpBlob,
+              `${baseName(file.name)}-sticker${suffix}.webp`,
+            );
+            stickerOutputs.push(outItem);
+            results.push(outItem);
+          }
+        }
+        if (stickerOutputs.length > 1) {
+          results.push(
+            await zipOutputs(
+              stickerOutputs,
+              `${baseName(file.name)}-stickers.zip`,
+              ctx,
+            ),
+          );
+        }
+        continue;
+      }
       if (id === "resize-image") {
         if (Number(o.percent) > 0) {
           w = Math.round((w * o.percent) / 100);
@@ -1013,7 +1649,9 @@ export async function run(id, files, o, ctx = {}) {
         g = c.getContext("2d");
       g.imageSmoothingEnabled = true;
       g.imageSmoothingQuality = "high";
-      if (["compress-image", "convert-image"].includes(id))
+      if (
+        ["compress-image", "convert-image", "pro-image-converter"].includes(id)
+      )
         fmt = o.format || "webp";
       if (id === "heic-to-jpg") fmt = "jpeg";
       if (fmt === "jpeg") {

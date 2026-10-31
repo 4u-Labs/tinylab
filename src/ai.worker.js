@@ -253,6 +253,36 @@ self.onmessage = async ({ data }) => {
             : o.studyMode === "quiz"
               ? `Create a 5-question multiple-choice review quiz (A, B, C, D) with an Answer Key at the end in ${lang} based on the source text below.`
               : `Generate a clear Frequently Asked Questions (FAQ) list with concise answers in ${lang} based on the source text below.`,
+        "ai-resume":
+          o.docType === "resume"
+            ? `Write a structured, ATS-friendly Resume in ${lang} with Professional Summary, Core Competencies, and quantifiable Experience bullets based on the details below.`
+            : o.docType === "linkedin"
+              ? `Write a compelling first-person LinkedIn 'About' summary and headline in ${lang} highlighting impact, skills, and career value based on the details below.`
+              : `Write a persuasive, professional Cover Letter in ${lang} tailored to the role and experience described below.`,
+        "ai-brand":
+          o.style === "trust"
+            ? `Generate 12 trustworthy, authoritative business/brand name ideas with taglines and positioning rationale in ${lang} for the briefing below.`
+            : o.style === "creative"
+              ? `Generate 12 creative brand names paired with memorable punchy slogans and social handle suggestions in ${lang} for the briefing below.`
+              : `Generate 12 short, modern, tech-friendly brand/product name ideas with domain suggestions and slogans in ${lang} for the briefing below.`,
+        "ai-legal":
+          o.legalKind === "terms"
+            ? `Draft a clear, structured Terms of Service template in ${lang} with sections for Acceptance, Permitted Use, Intellectual Property, Limitation of Liability, and Contact based on the details below.`
+            : o.legalKind === "refund"
+              ? `Draft a clear Refund, Exchange, and Cancellation Policy in ${lang} covering deadlines, eligibility, procedure, and customer support based on the details below.`
+              : `Draft a comprehensive Privacy Policy template compliant with LGPD and GDPR in ${lang} covering Data Collected, Purpose, Local/Cloud Storage, User Rights, and Contact based on the details below.`,
+        "ai-transcript-summary":
+          o.noteStyle === "study"
+            ? `Summarize this lecture/video transcript in ${lang} into structured study notes with Core Concepts, Key Definitions, and Summary Takeaways.`
+            : o.noteStyle === "timestamps"
+              ? `Extract structured chapter highlights and key takeaways in ${lang} from the transcript below.`
+              : `Create executive Meeting Minutes in ${lang} with Agenda Summary, Key Decisions Made, and a checklist of Action Items from the transcript below.`,
+        "ai-code":
+          o.codeTask === "sql"
+            ? `Write clean, optimized SQL queries with brief explanations in ${lang} for the requirement or schema described below.`
+            : o.codeTask === "refactor"
+              ? `Review the code below, identify potential bugs, edge cases or performance issues, and provide a clean refactored version with explanations in ${lang}.`
+              : `Explain how the code below works step by step in clear ${lang}, highlighting inputs, logic flow, and outputs.`,
       };
       if (!requests[id]) throw new Error("Unknown AI operation");
       const isCreative = [
@@ -261,6 +291,10 @@ self.onmessage = async ({ data }) => {
         "ai-article",
         "ai-product",
         "ai-youtube",
+        "ai-resume",
+        "ai-brand",
+        "ai-legal",
+        "ai-code",
       ].includes(id);
       let content = String(o.content || "").trim();
       if (!content) throw new Error("Texto vazio / Empty text.");
@@ -304,7 +338,7 @@ self.onmessage = async ({ data }) => {
           : generated.at(-1).content;
       }
       if (
-        ["summarize", "summarize-pdf"].includes(id) &&
+        ["summarize", "summarize-pdf", "ai-transcript-summary"].includes(id) &&
         content.length > 6000
       ) {
         const chunks = [];

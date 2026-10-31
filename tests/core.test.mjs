@@ -21,19 +21,29 @@ import {
   removeBackground,
   inpaintImage,
   vectorizeToSvg,
+  decodePsd,
+  decodeTiff,
+  decodeIco,
+  extractColorPalette,
+  colorizeImageData,
 } from "../src/engines/image.js";
-import { command, atempoChain } from "../src/engines/media.js";
+import {
+  command,
+  atempoChain,
+  synthesizeSpeechWav,
+} from "../src/engines/media.js";
 import { PDFDocument } from "pdf-lib";
 import {
   run as pdf,
   readPdfMetadata,
   findTermRedactionBoxes,
+  extractText,
 } from "../src/engines/pdf.js";
 import { run as data } from "../src/engines/data.js";
 import * as XLSX from "xlsx";
 test("catalog IDs are unique, bilingual and all route to engines", () => {
   assert.equal(new Set(tools.map((t) => t.id)).size, tools.length);
-  assert.ok(tools.length >= 132);
+  assert.equal(tools.length, 150);
   for (const t of tools) {
     assert.ok(t.title.pt && t.title.en && t.description.pt && t.description.en);
     if (t.external) assert.match(t.external, /^https:\/\/4u\.ia\.br\/app\//);
@@ -48,6 +58,14 @@ test("search handles accents, synonyms and category", () => {
   assert.ok(searchTools("carrossel").some((t) => t.id === "split-image"));
   assert.ok(searchTools("vetor").some((t) => t.id === "image-to-svg"));
   assert.ok(searchTools("baixou").some((t) => t.id === "baixou-downloader"));
+  assert.ok(searchTools("slides").some((t) => t.id === "pdf-to-pptx"));
+  assert.ok(searchTools("ebook").some((t) => t.id === "epub-pdf"));
+  assert.ok(searchTools("figurinha").some((t) => t.id === "sticker-maker"));
+  assert.ok(
+    searchTools("photoshop").some((t) => t.id === "pro-image-converter"),
+  );
+  assert.ok(searchTools("paleta").some((t) => t.id === "image-palette"));
+  assert.ok(searchTools("curriculo").some((t) => t.id === "ai-resume"));
 });
 test("page ranges fail rather than silently returning a different document", () => {
   assert.deepEqual(pageIndices("1-3, 5, 3", 5), [0, 1, 2, 4]);
@@ -668,17 +686,20 @@ test("Etapa 4 SEO static tool pages, sitemap.xml, Open Graph banner and PWA shar
   const vm = await import("node:vm");
   const { readFile, stat } = await import("node:fs/promises");
 
-  // 1. Sitemap contains root + all 130 internal tools, excluding external apps
+  // 1. Sitemap contains root + all 148 internal tools, excluding external apps
   const sitemap = await readFile(
     new URL("../sitemap.xml", import.meta.url),
     "utf8",
   );
   const locs = [...sitemap.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
   const internalCount = tools.filter((t) => !t.external).length;
-  assert.equal(internalCount, 130);
+  assert.equal(internalCount, 148);
   assert.equal(locs.length, internalCount + 1);
   assert.equal(locs[0], "https://4u.ia.br/app/tinylab/");
   assert.ok(locs.includes("https://4u.ia.br/app/tinylab/merge-pdf/"));
+  assert.ok(locs.includes("https://4u.ia.br/app/tinylab/pdf-to-pptx/"));
+  assert.ok(locs.includes("https://4u.ia.br/app/tinylab/pro-image-converter/"));
+  assert.ok(locs.includes("https://4u.ia.br/app/tinylab/text-to-speech/"));
   assert.ok(!locs.some((u) => u.includes("clipcut-studio")));
 
   // 2. OG banner assets exist
@@ -767,4 +788,198 @@ test("Etapa 4 SEO static tool pages, sitemap.xml, Open Graph banner and PWA shar
     .json();
   assert.equal(metaJson.files.length, 1);
   assert.equal(metaJson.files[0].name, "compartilhado.pdf");
+});
+
+test("Etapa 5 tools: PDF to PPTX, Edit PDF text, Grayscale PDF, Compare PDF, EPUB <-> PDF, PSD/TIFF/ICO decode, Palette, Colorize, TTS WAV and Media commands", async () => {
+  const { default: JSZip } = await import("jszip");
+
+  // 1. Create sample PDFs
+  const [pdfA] = await pdf("text-to-pdf", [], {
+    content: "Relatorio Alpha\nValor antigo: 100\nLinha comum",
+    fontSize: 12,
+  });
+  const [pdfB] = await pdf("text-to-pdf", [], {
+    content: "Relatorio Beta\nValor novo: 250\nLinha comum",
+    fontSize: 12,
+  });
+  const fileA = new File([pdfA.blob], "alpha.pdf", { type: "application/pdf" });
+  const fileB = new File([pdfB.blob], "beta.pdf", { type: "application/pdf" });
+
+  // 2. PDF -> PPTX (text mode in Node without OffscreenCanvas raster requirement)
+  const [pptxOut] = await pdf("pdf-to-pptx", [fileA], { mode: "text" });
+  assert.ok(pptxOut.name.endsWith(".pptx"));
+  const pptxZip = await JSZip.loadAsync(await pptxOut.blob.arrayBuffer());
+  assert.ok(pptxZip.file("ppt/presentation.xml"));
+  assert.ok(pptxZip.file("ppt/slides/slide1.xml"));
+  const slideXml = await pptxZip.file("ppt/slides/slide1.xml").async("string");
+  assert.ok(slideXml.includes("Relatorio Alpha"));
+
+  // 3. Edit PDF text (find & replace)
+  const [editedPdf] = await pdf("edit-pdf-text", [fileA], {
+    find: "antigo",
+    replace: "atualizado",
+    pages: "1",
+    bgColor: "#ffffff",
+    color: "#111111",
+  });
+  const editedText = (
+    await extractText(
+      new File([editedPdf.blob], "edited.pdf", { type: "application/pdf" }),
+    )
+  ).join("\n");
+  assert.ok(editedText.includes("atualizado"));
+
+  // 4. Grayscale PDF (smart mode)
+  const [grayPdf] = await pdf("grayscale-pdf", [fileA], { mode: "smart" });
+  assert.ok(grayPdf.blob.size > 100);
+  const grayDoc = await PDFDocument.load(await grayPdf.blob.arrayBuffer());
+  assert.equal(grayDoc.getPageCount(), 1);
+
+  // 5. Compare 2 PDFs
+  const cmpOutputs = await pdf("compare-pdf", [fileA, fileB], {
+    viewMode: "split",
+  });
+  assert.equal(cmpOutputs.length, 2);
+  assert.ok(Array.isArray(cmpOutputs[1].diffRows));
+  assert.ok(cmpOutputs[1].diffRows.some((r) => r.type !== "same"));
+
+  // 6. EPUB <-> PDF round-trip
+  const [epubOut] = await pdf("epub-pdf", [fileA], {
+    title: "Livro Teste",
+    author: "4u-Labs",
+  });
+  assert.ok(epubOut.name.endsWith(".epub"));
+  const epubZip = await JSZip.loadAsync(await epubOut.blob.arrayBuffer());
+  assert.equal(
+    await epubZip.file("mimetype").async("string"),
+    "application/epub+zip",
+  );
+  const epubFile = new File([epubOut.blob], "livro.epub", {
+    type: "application/epub+zip",
+  });
+  const [pdfFromEpub] = await pdf("epub-pdf", [epubFile], { fontSize: 12 });
+  assert.ok(pdfFromEpub.name.endsWith(".pdf"));
+  const roundText = (
+    await extractText(
+      new File([pdfFromEpub.blob], "livro.pdf", { type: "application/pdf" }),
+    )
+  ).join("\n");
+  assert.ok(roundText.includes("Relatorio Alpha"));
+
+  // 7. Decode PSD (uncompressed 2x2 RGB), TIFF (uncompressed 2x1 RGB) and ICO (1x1 32-bit BMP)
+  const psdBytes = new Uint8Array(26 + 4 + 4 + 4 + 2 + 12);
+  const psdDv = new DataView(psdBytes.buffer);
+  psdBytes.set([0x38, 0x42, 0x50, 0x53], 0); // 8BPS
+  psdDv.setUint16(4, 1, false); // version 1
+  psdDv.setUint16(12, 3, false); // 3 channels
+  psdDv.setUint32(14, 2, false); // height 2
+  psdDv.setUint32(18, 2, false); // width 2
+  psdDv.setUint16(22, 8, false); // depth 8
+  psdDv.setUint16(24, 3, false); // RGB mode
+  // lengths at 26, 30, 34 are 0; compression at 38 = 0 (raw); followed by 4 R, 4 G, 4 B
+  psdBytes.set([255, 255, 255, 255, 0, 0, 0, 0, 0, 0, 0, 0], 40);
+  const psdDecoded = decodePsd(psdBytes);
+  assert.equal(psdDecoded.width, 2);
+  assert.equal(psdDecoded.height, 2);
+  assert.equal(psdDecoded.data[0], 255);
+  assert.equal(psdDecoded.data[1], 0);
+
+  // Minimal Little-Endian TIFF (2x1 RGB)
+  const tiffBytes = new Uint8Array(128);
+  const tiffDv = new DataView(tiffBytes.buffer);
+  tiffBytes.set([0x49, 0x49, 42, 0], 0);
+  tiffDv.setUint32(4, 8, true); // IFD at 8
+  tiffDv.setUint16(8, 5, true); // 5 entries
+  const writeIfd = (idx, tag, type, count, val) => {
+    const off = 10 + idx * 12;
+    tiffDv.setUint16(off, tag, true);
+    tiffDv.setUint16(off + 2, type, true);
+    tiffDv.setUint32(off + 4, count, true);
+    tiffDv.setUint32(off + 8, val, true);
+  };
+  writeIfd(0, 256, 3, 1, 2); // Width = 2
+  writeIfd(1, 257, 3, 1, 1); // Height = 1
+  writeIfd(2, 259, 3, 1, 1); // Compression = 1
+  writeIfd(3, 273, 4, 1, 90); // StripOffsets = 90
+  writeIfd(4, 277, 3, 1, 3); // SamplesPerPixel = 3
+  tiffBytes.set([10, 20, 30, 40, 50, 60], 90);
+  const tiffDecoded = decodeTiff(tiffBytes);
+  assert.equal(tiffDecoded.width, 2);
+  assert.equal(tiffDecoded.height, 1);
+  assert.equal(tiffDecoded.data[0], 10);
+  assert.equal(tiffDecoded.data[1], 20);
+  assert.equal(tiffDecoded.data[2], 30);
+
+  // Minimal 1x1 32-bit ICO
+  const icoBytes = new Uint8Array(22 + 40 + 8);
+  const icoDv = new DataView(icoBytes.buffer);
+  icoDv.setUint16(2, 1, true);
+  icoDv.setUint16(4, 1, true);
+  icoBytes[6] = 1;
+  icoBytes[7] = 1;
+  icoDv.setUint16(12, 32, true);
+  icoDv.setUint32(14, 48, true);
+  icoDv.setUint32(18, 22, true);
+  icoDv.setUint32(22, 40, true); // DIB header size
+  icoDv.setInt32(26, 1, true); // width 1
+  icoDv.setInt32(30, 2, true); // height*2 = 2
+  icoDv.setUint16(34, 1, true);
+  icoDv.setUint16(36, 32, true); // 32 bpp
+  icoBytes.set([200, 100, 50, 255], 62); // BGRA -> RGBA(50,100,200,255)
+  const icoDecoded = decodeIco(icoBytes);
+  assert.equal(icoDecoded.width, 1);
+  assert.equal(icoDecoded.height, 1);
+  assert.equal(icoDecoded.data[0], 50);
+  assert.equal(icoDecoded.data[1], 100);
+  assert.equal(icoDecoded.data[2], 200);
+
+  // 8. Palette extraction & B&W colorization
+  const palData = new Uint8ClampedArray(16 * 4);
+  for (let i = 0; i < 12; i++) palData.set([255, 0, 0, 255], i * 4);
+  for (let i = 12; i < 16; i++) palData.set([0, 0, 255, 255], i * 4);
+  const pal = extractColorPalette(palData, 4, 4, 2);
+  assert.equal(pal.length, 2);
+  assert.equal(pal[0].hex, "#ff0000");
+
+  const bwPx = new Uint8ClampedArray([128, 128, 128, 255, 160, 160, 160, 255]);
+  colorizeImageData(bwPx, 2, 1, "vintage", 100);
+  assert.ok(bwPx[0] > bwPx[2]); // Warm vintage boosts red over blue
+
+  // 9. Text-to-Speech WAV synthesizer & FFmpeg commands
+  const wav = synthesizeSpeechWav("TinyLab teste", "female", 1.0);
+  assert.equal(
+    String.fromCharCode(wav[0], wav[1], wav[2], wav[3]),
+    "RIFF",
+  );
+  assert.equal(
+    String.fromCharCode(wav[8], wav[9], wav[10], wav[11]),
+    "WAVE",
+  );
+  assert.ok(wav.byteLength > 8000);
+
+  const revArgs = command(
+    "reverse-video",
+    { audioMode: "reverse" },
+    "in.mp4",
+    "out.mp4",
+  );
+  assert.ok(revArgs.includes("reverse"));
+  assert.ok(revArgs.includes("areverse"));
+
+  const denArgs = command(
+    "denoise-audio",
+    { mode: "denoise", format: "mp3" },
+    "in.wav",
+    "out.mp3",
+  );
+  assert.ok(denArgs.some((a) => a.includes("afftdn")));
+
+  const mixArgs = command(
+    "add-audio-video",
+    { mode: "mix", musicVol: 80, loop: "yes" },
+    "in.mp4",
+    "out.mp4",
+    { audioInput: "bgm.mp3" },
+  );
+  assert.ok(mixArgs.some((a) => a.includes("amix")));
 });

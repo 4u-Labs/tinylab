@@ -202,11 +202,233 @@ export function command(id, o, input, outputName, meta = {}) {
           : enc),
         outputName,
       ];
+    case "reverse-video":
+      if (o.audioMode === "mute" || meta.hasAudio === false) {
+        return [
+          "-i",
+          input,
+          "-vf",
+          "reverse",
+          "-an",
+          "-c:v",
+          "libx264",
+          "-preset",
+          "ultrafast",
+          "-pix_fmt",
+          "yuv420p",
+          outputName,
+        ];
+      }
+      return [
+        "-i",
+        input,
+        "-vf",
+        "reverse",
+        "-af",
+        "areverse",
+        ...enc,
+        outputName,
+      ];
+    case "denoise-audio": {
+      const af =
+        o.mode === "karaoke"
+          ? "pan=stereo|c0=c0-c1|c1=c1-c0"
+          : o.mode === "podcast"
+            ? "highpass=f=80,lowpass=f=13000,afftdn=nf=-24,acompressor=threshold=-18dB:ratio=3:attack=15:release=200,dynaudnorm"
+            : "highpass=f=70,afftdn=nf=-25,dynaudnorm";
+      return ["-i", input, "-vn", "-af", af, ...audioCodec(fmt), outputName];
+    }
+    case "add-audio-video": {
+      const audioIn = meta.audioInput || "input-1.mp3";
+      const vol = Math.max(0.1, Math.min(3, Number(o.musicVol || 80) / 100)).toFixed(2);
+      const loopArgs = o.loop === "no" ? [] : ["-stream_loop", "-1"];
+      if (o.mode === "mix" && meta.hasVideoAudio !== false) {
+        return [
+          "-i",
+          input,
+          ...loopArgs,
+          "-i",
+          audioIn,
+          "-filter_complex",
+          `[0:a]volume=1.0[va];[1:a]volume=${vol}[ma];[va][ma]amix=inputs=2:duration=first:dropout_transition=2[outa]`,
+          "-map",
+          "0:v:0",
+          "-map",
+          "[outa]",
+          "-shortest",
+          ...enc,
+          outputName,
+        ];
+      }
+      return [
+        "-i",
+        input,
+        ...loopArgs,
+        "-i",
+        audioIn,
+        "-filter_complex",
+        `[1:a]volume=${vol}[outa]`,
+        "-map",
+        "0:v:0",
+        "-map",
+        "[outa]",
+        "-shortest",
+        ...enc,
+        outputName,
+      ];
+    }
     default:
       throw new Error(
         "Operação de mídia desconhecida / Unknown media operation.",
       );
   }
+}
+export function synthesizeSpeechWav(
+  text,
+  voiceProfile = "warm",
+  rate = 1,
+) {
+  const clean = String(text || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim()
+    .slice(0, 4000);
+  if (!clean)
+    throw new Error("Digite o texto para narrar / Enter text to speak.");
+  const sr = 22050;
+  const spd = Math.max(0.5, Math.min(2.5, Number(rate || 1)));
+  const baseF0 =
+    voiceProfile === "female"
+      ? 215
+      : voiceProfile === "male"
+        ? 118
+        : voiceProfile === "robot"
+          ? 142
+          : 164;
+  const formants = {
+    a: [730, 1090, 2440],
+    e: [530, 1840, 2480],
+    i: [270, 2290, 3010],
+    o: [570, 840, 2410],
+    u: [300, 870, 2240],
+    m: [280, 900, 2200],
+    n: [300, 1450, 2450],
+    l: [360, 1300, 2600],
+    r: [420, 1380, 1900],
+  };
+  const tokens = [];
+  for (let i = 0; i < clean.length; i++) {
+    const ch = clean[i].toLowerCase();
+    if (/\s/.test(ch)) {
+      if (tokens.at(-1)?.kind !== "pause")
+        tokens.push({ kind: "pause", dur: 0.055 / spd });
+    } else if (/[,;:]/.test(ch)) {
+      tokens.push({ kind: "pause", dur: 0.16 / spd });
+    } else if (/[.!?]/.test(ch)) {
+      tokens.push({ kind: "pause", dur: 0.26 / spd });
+    } else if (formants[ch]) {
+      tokens.push({
+        kind: "voiced",
+        f: formants[ch],
+        dur: (/[aeiou]/.test(ch) ? 0.095 : 0.065) / spd,
+        amp: /[aeiou]/.test(ch) ? 0.85 : 0.52,
+      });
+    } else if (/[szfxjcv]/.test(ch)) {
+      tokens.push({ kind: "fric", dur: 0.055 / spd, freq: /[sz]/.test(ch) ? 4200 : 2400 });
+    } else if (/[ptkbdg]/.test(ch)) {
+      tokens.push({ kind: "plosive", dur: 0.045 / spd, voiced: /[bdg]/.test(ch) });
+    } else {
+      tokens.push({
+        kind: "voiced",
+        f: [480, 1500, 2400],
+        dur: 0.055 / spd,
+        amp: 0.48,
+      });
+    }
+  }
+  const totalSamples = Math.max(
+    Math.round(sr * 0.25),
+    tokens.reduce((acc, t) => acc + Math.round(t.dur * sr), 0) + Math.round(sr * 0.12),
+  );
+  const pcm = new Float32Array(totalSamples);
+  let cursor = Math.round(sr * 0.04);
+  let phase0 = 0,
+    phase1 = 0,
+    phase2 = 0,
+    phase3 = 0,
+    rng = 1337;
+  const rand = () => {
+    rng = (rng * 1664525 + 1013904223) >>> 0;
+    return rng / 0xffffffff - 0.5;
+  };
+  for (let ti = 0; ti < tokens.length; ti++) {
+    const tok = tokens[ti];
+    const len = Math.max(1, Math.round(tok.dur * sr));
+    const progressRatio = ti / Math.max(1, tokens.length - 1);
+    const contour =
+      voiceProfile === "robot"
+        ? 1
+        : 1 + 0.06 * Math.sin(progressRatio * Math.PI * 3) - 0.08 * progressRatio;
+    const f0 = baseF0 * contour;
+    for (let n = 0; n < len && cursor + n < totalSamples; n++) {
+      const u = n / len;
+      const env = Math.sin(Math.min(1, u / 0.15) * (Math.PI / 2)) *
+        Math.sin(Math.min(1, (1 - u) / 0.22) * (Math.PI / 2));
+      let sample = 0;
+      if (tok.kind === "voiced") {
+        phase0 += (2 * Math.PI * f0) / sr;
+        phase1 += (2 * Math.PI * tok.f[0]) / sr;
+        phase2 += (2 * Math.PI * tok.f[1]) / sr;
+        phase3 += (2 * Math.PI * tok.f[2]) / sr;
+        const glottal =
+          Math.sin(phase0) +
+          0.5 * Math.sin(2 * phase0) +
+          0.25 * Math.sin(3 * phase0);
+        sample =
+          tok.amp *
+          env *
+          (0.45 * glottal +
+            0.32 * Math.sin(phase1) +
+            0.16 * Math.sin(phase2) +
+            0.07 * Math.sin(phase3));
+      } else if (tok.kind === "fric") {
+        phase1 += (2 * Math.PI * tok.freq) / sr;
+        sample = 0.26 * env * rand() * Math.sin(phase1);
+      } else if (tok.kind === "plosive") {
+        if (u > 0.35) {
+          phase0 += (2 * Math.PI * f0) / sr;
+          sample =
+            env *
+            (0.28 * rand() * Math.exp(-(u - 0.35) * 14) +
+              (tok.voiced ? 0.25 * Math.sin(phase0) : 0));
+        }
+      }
+      pcm[cursor + n] = Math.max(-0.98, Math.min(0.98, sample));
+    }
+    cursor += len;
+  }
+  const wavBuf = new ArrayBuffer(44 + totalSamples * 2);
+  const dv = new DataView(wavBuf);
+  const writeStr = (off, s) => {
+    for (let i = 0; i < s.length; i++) dv.setUint8(off + i, s.charCodeAt(i));
+  };
+  writeStr(0, "RIFF");
+  dv.setUint32(4, 36 + totalSamples * 2, true);
+  writeStr(8, "WAVE");
+  writeStr(12, "fmt ");
+  dv.setUint32(16, 16, true);
+  dv.setUint16(20, 1, true);
+  dv.setUint16(22, 1, true);
+  dv.setUint32(24, sr, true);
+  dv.setUint32(28, sr * 2, true);
+  dv.setUint16(32, 2, true);
+  dv.setUint16(34, 16, true);
+  writeStr(36, "data");
+  dv.setUint32(40, totalSamples * 2, true);
+  for (let i = 0; i < totalSamples; i++) {
+    dv.setInt16(44 + i * 2, Math.round(pcm[i] * 32767), true);
+  }
+  return new Uint8Array(wavBuf);
 }
 const audioCodec = (fmt) =>
   fmt === "wav"
@@ -217,6 +439,16 @@ const audioCodec = (fmt) =>
         ? ["-c:a", "aac", "-b:a", "192k"]
         : ["-c:a", "libmp3lame", "-b:a", "192k"];
 export async function run(id, files, o, ctx = {}) {
+  if (id === "text-to-speech") {
+    const wavBytes = synthesizeSpeechWav(o.content, o.voiceProfile, o.rate);
+    progress(ctx, 100);
+    return [
+      output(
+        new Blob([wavBytes], { type: "audio/wav" }),
+        "tinylab-tts.wav",
+      ),
+    ];
+  }
   const { FFmpeg } = await import(asset("ffmpeg/index.js"));
   const ff = new FFmpeg();
   const logs = [];
@@ -256,6 +488,7 @@ export async function run(id, files, o, ctx = {}) {
         "trim-audio",
         "merge-audio",
         "normalize-audio",
+        "denoise-audio",
       ].includes(id) || isAudioInput;
     const format =
       id === "video-to-gif"
@@ -472,6 +705,37 @@ export async function run(id, files, o, ctx = {}) {
           `${baseName(files[0].name)}-legendado.mp4`,
         ),
       );
+    } else if (id === "add-audio-video") {
+      if (files.length < 2)
+        throw new Error(
+          "Selecione 1 arquivo de vídeo e 1 arquivo de áudio / Select 1 video file and 1 audio file.",
+        );
+      let vIdx = files.findIndex(
+        (f) =>
+          f.type.startsWith("video/") ||
+          /\.(mp4|webm|mov|mkv|avi)$/i.test(f.name),
+      );
+      let aIdx = files.findIndex(
+        (f, idx) =>
+          idx !== vIdx &&
+          (f.type.startsWith("audio/") ||
+            /\.(mp3|wav|ogg|m4a|flac|aac)$/i.test(f.name)),
+      );
+      if (vIdx < 0) vIdx = 0;
+      if (aIdx < 0) aIdx = vIdx === 0 ? 1 : 0;
+      const vInfo = await probeInput(inputs[vIdx]);
+      await exec(
+        command("add-audio-video", o, inputs[vIdx], "output.mp4", {
+          audioInput: inputs[aIdx],
+          hasVideoAudio: vInfo.hasAudio,
+        }),
+      );
+      res.push(
+        output(
+          new Blob([await ff.readFile("output.mp4")], { type: "video/mp4" }),
+          `${baseName(files[vIdx].name)}-com-audio.mp4`,
+        ),
+      );
     } else
       for (let i = 0; i < inputs.length; i++) {
         const outName =
@@ -479,7 +743,7 @@ export async function run(id, files, o, ctx = {}) {
             ? `frame-${i}-%04d.png`
             : `output-${i}.${format}`;
         const meta =
-          id === "speed-media"
+          id === "speed-media" || id === "reverse-video"
             ? {
                 ...(await probeInput(inputs[i])),
                 isAudioOnly: isAudioInput,
