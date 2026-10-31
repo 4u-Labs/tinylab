@@ -983,3 +983,104 @@ test("Etapa 5 tools: PDF to PPTX, Edit PDF text, Grayscale PDF, Compare PDF, EPU
   );
   assert.ok(mixArgs.some((a) => a.includes("amix")));
 });
+
+test("Homepage UI integrity: specificIcons, badges, featured tools & Smart Dropzone file recommendations", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const mainSrc = await readFile("src/main.js", "utf8");
+  const indexHtml = await readFile("index.html", "utf8");
+  const catalogIds = new Set(tools.map((t) => t.id));
+
+  const sliceBlock = (marker, closeToken) => {
+    const start = mainSrc.indexOf(marker);
+    assert.ok(start >= 0, `Expected marker ${marker} in src/main.js`);
+    const end = mainSrc.indexOf(closeToken, start);
+    return mainSrc.slice(start, end);
+  };
+  const grab = (re, s) => [...s.matchAll(re)].map((m) => m[1]);
+
+  // 1. All 150 tools have specific icons and no dead IDs exist in UI maps
+  const iconKeys = grab(
+    /^\s+"?([a-z0-9-]+)"?:\s*"/gm,
+    sliceBlock("const specificIcons = {", "};"),
+  );
+  assert.equal(iconKeys.length, tools.length);
+  for (const t of tools) {
+    assert.ok(iconKeys.includes(t.id), `Missing specificIcon for ${t.id}`);
+  }
+
+  for (const id of [
+    ...grab(
+      /"([a-z0-9-]+)"/g,
+      sliceBlock("const newToolIds = new Set([", "]);"),
+    ),
+    ...grab(
+      /"([a-z0-9-]+)"/g,
+      sliceBlock("const popularToolIds = new Set([", "]);"),
+    ),
+    ...grab(/"([a-z0-9-]+)"/g, sliceBlock("const featuredToolIds = [", "];")),
+    ...grab(/data-tool="([^"]+)"/g, indexHtml),
+  ]) {
+    assert.ok(catalogIds.has(id), `Unknown tool ID in homepage UI: ${id}`);
+  }
+
+  // 2. Smart Dropzone file recommendation & single/multi-file handoff
+  const recCode = sliceBlock(
+    "function recommendToolsForFiles(incoming) {",
+    "function renderHeroDropMatched()",
+  );
+  const { recommendToolsForFiles, filesForTool } = new Function(
+    "findTool",
+    "validFiles",
+    `${recCode}; return { recommendToolsForFiles, filesForTool };`,
+  )((id) => tools.find((t) => t.id === id), validFiles);
+
+  const mkFile = (name, type = "", bytes = 16) =>
+    new File([new Uint8Array(bytes)], name, { type });
+
+  const matrix = [
+    [["relatorio.pdf", "application/pdf"], "compress-pdf"],
+    [
+      [
+        ["a.pdf", "application/pdf"],
+        ["b.pdf", "application/pdf"],
+      ],
+      "merge-pdf",
+    ],
+    [["foto.jpg", "image/jpeg"], "ai-remove-bg"],
+    [["arte.psd", ""], "pro-image-converter"],
+    [["digitalizado.tiff", "image/tiff"], "pro-image-converter"],
+    [["iphone.heic", ""], "heic-to-jpg"],
+    [["vetor.svg", "image/svg+xml"], "svg-to-png"],
+    [["animado.gif", "image/gif"], "gif-to-video"],
+    [["aula.mp4", "video/mp4"], "trim-video"],
+    [["entrevista.mp3", "audio/mpeg"], "trim-audio"],
+    [["ebook.epub", "application/epub+zip"], "epub-pdf"],
+    [["planilha.xlsx", ""], "excel-to-pdf"],
+    [["tabela.csv", "text/csv"], "csv-to-excel"],
+    [["dados.json", "application/json"], "json-to-excel"],
+    [["nota.xml", "text/xml"], "xml-to-json"],
+    [["slides.pptx", ""], "office-to-pdf"],
+    [["contrato.docx", ""], "word-to-pdf"],
+    [["pacote.zip", "application/zip"], "extract-zip"],
+  ];
+
+  for (const [spec, expectedFirst] of matrix) {
+    const incoming = Array.isArray(spec[0])
+      ? spec.map(([n, t]) => mkFile(n, t))
+      : [mkFile(spec[0], spec[1])];
+    const recs = recommendToolsForFiles(incoming);
+    assert.ok(recs.length >= 2, `Expected >=2 recommendations for ${spec}`);
+    assert.equal(recs[0].id, expectedFirst);
+    for (const tool of recs) {
+      const handoff = filesForTool(tool, incoming);
+      assert.doesNotThrow(() => validFiles(tool, handoff));
+      if (!tool.multiple) assert.equal(handoff.length, 1);
+    }
+  }
+
+  // Empty 0-byte file must return 0 recommendations
+  assert.equal(
+    recommendToolsForFiles([mkFile("vazio.pdf", "application/pdf", 0)]).length,
+    0,
+  );
+});

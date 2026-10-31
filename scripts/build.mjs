@@ -14,6 +14,65 @@ import path from "node:path";
 import { tools, categories } from "../src/catalog.js";
 const root = path.resolve(import.meta.dirname, "..");
 process.chdir(root);
+{
+  const catalogIds = new Set(tools.map((t) => t.id));
+  const mainSrc = await readFile("src/main.js", "utf8");
+  const indexHtml = await readFile("index.html", "utf8");
+  const sliceBlock = (marker, closeToken) => {
+    const start = mainSrc.indexOf(marker);
+    if (start < 0) throw new Error(`Missing block in src/main.js: ${marker}`);
+    const end = mainSrc.indexOf(closeToken, start);
+    return mainSrc.slice(start, end);
+  };
+  const grab = (re, str) => [...str.matchAll(re)].map((m) => m[1]);
+  const iconKeys = grab(
+    /^\s+"?([a-z0-9-]+)"?:\s*"/gm,
+    sliceBlock("const specificIcons = {", "};"),
+  );
+  const newIds = grab(
+    /"([a-z0-9-]+)"/g,
+    sliceBlock("const newToolIds = new Set([", "]);"),
+  );
+  const popIds = grab(
+    /"([a-z0-9-]+)"/g,
+    sliceBlock("const popularToolIds = new Set([", "]);"),
+  );
+  const featIds = grab(
+    /"([a-z0-9-]+)"/g,
+    sliceBlock("const featuredToolIds = [", "];"),
+  );
+  const recIds = grab(
+    /"([a-z0-9]+(?:-[a-z0-9]+)+)"/g,
+    sliceBlock(
+      "function recommendToolsForFiles(incoming) {",
+      "function filesForTool(",
+    ),
+  );
+  const htmlToolIds = grab(/data-tool="([^"]+)"/g, indexHtml);
+  const openLiterals = grab(/openTool\("([^"]+)"/g, mainSrc);
+  const allRefs = [
+    ...iconKeys,
+    ...newIds,
+    ...popIds,
+    ...featIds,
+    ...recIds,
+    ...htmlToolIds,
+    ...openLiterals,
+  ];
+  const unknown = [...new Set(allRefs)].filter((id) => !catalogIds.has(id));
+  if (unknown.length) {
+    throw new Error(
+      `Build aborted — unknown tool IDs referenced in UI: ${unknown.join(", ")}`,
+    );
+  }
+  const iconSet = new Set(iconKeys);
+  const missingIcons = tools.filter((t) => !iconSet.has(t.id)).map((t) => t.id);
+  if (missingIcons.length) {
+    throw new Error(
+      `Build aborted — tools missing from specificIcons: ${missingIcons.join(", ")}`,
+    );
+  }
+}
 await mkdir("assets", { recursive: true });
 await mkdir("vendor", { recursive: true });
 const result = await build({
