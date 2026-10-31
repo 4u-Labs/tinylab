@@ -36,10 +36,13 @@ if (!["pt", "en"].includes(lang)) lang = "pt";
 const L = (p, e) => (lang === "pt" ? p : e);
 let favorites = stored("favorites", []),
   recent = stored("recent", []),
+  layout = stored("layout", "grouped"),
   category = "all",
   filter = "all",
   query = "",
-  installPrompt = null;
+  installPrompt = null,
+  heroFiles = [];
+if (!["grouped", "grid", "compact"].includes(layout)) layout = "grouped";
 let active = null,
   files = [],
   results = [],
@@ -77,11 +80,233 @@ const icons = {
   dev: "⌘",
   ai: "✧",
 };
+const specificIcons = {
+  "merge-pdf": "⊞",
+  "split-pdf": "✂",
+  "reorder-pdf": "⇄",
+  "rotate-pdf": "↻",
+  "delete-pdf-pages": "⌫",
+  "extract-pdf-pages": "❐",
+  "compress-pdf": "⤡",
+  "pdf-to-images": "▣",
+  "images-to-pdf": "▤",
+  "pdf-to-text": "¶",
+  "pdf-to-word": "W",
+  "word-to-pdf": "▤",
+  "pdf-to-excel": "⊞",
+  "excel-to-pdf": "▤",
+  "pdf-to-pptx": "▣",
+  "pptx-to-pdf": "▤",
+  "html-to-pdf": "⟨⟩",
+  "watermark-pdf": "◈",
+  "page-numbers-pdf": "№",
+  "protect-pdf": "🔒",
+  "unlock-pdf": "🔓",
+  "sign-pdf": "✒",
+  "annotate-pdf": "✎",
+  "redact-pdf": "■",
+  "edit-pdf": "✎",
+  "grayscale-pdf": "◐",
+  "compare-pdf": "⇄",
+  "epub-pdf": "📖",
+  "crop-pdf": "◰",
+  "flatten-pdf": "⧉",
+  "fill-pdf": "☑",
+  "repair-pdf": "🛠",
+  "pdf-metadata": "ℹ",
+  "ocr-pdf": "⌖",
+  "convert-image": "⇄",
+  "compress-image": "⤡",
+  "resize-image": "⤢",
+  "crop-image": "◰",
+  "rotate-image": "↻",
+  "remove-bg": "◌",
+  "ai-remove-bg": "✦",
+  "blur-bg": "◎",
+  "remove-object": "⌫",
+  "watermark-image": "©",
+  "meme-generator": "☺",
+  "meme-mockup": "▣",
+  "collage-maker": "⊞",
+  "image-splitter": "⊞",
+  "color-adjust": "◐",
+  "image-filters": "✧",
+  "pixelate-image": "▦",
+  "round-corners": "▢",
+  "add-border": "▣",
+  "heic-converter": "⇄",
+  "svg-to-png": "◇",
+  "favicon-generator": "★",
+  "exif-reader": "ℹ",
+  "strip-exif": "🛡",
+  "ocr-image": "⌖",
+  "pro-image-converter": "◈",
+  "palette-extractor": "🎨",
+  "colorize-image": "🌈",
+  "sticker-maker": "☺",
+  "oneclick-studio": "✨",
+  "trim-video": "✂",
+  "compress-video": "⤡",
+  "convert-video": "⇄",
+  "video-to-gif": "GIF",
+  "extract-audio": "♪",
+  "mute-video": "🔇",
+  "video-speed": "⏩",
+  "resize-video": "⤢",
+  "rotate-video": "↻",
+  "merge-videos": "⊞",
+  "subtitles-video": "CC",
+  "burn-subtitles": "🔥",
+  "video-frames": "▣",
+  "trim-audio": "✂",
+  "convert-audio": "♪",
+  "merge-audio": "⊞",
+  "audio-speed": "⏩",
+  "normalize-audio": "≈",
+  "screen-recorder": "◉",
+  "voice-recorder": "🎙",
+  "text-to-speech": "🔊",
+  "add-audio-to-video": "♪",
+  "reverse-video": "⏪",
+  "denoise-audio": "🎙",
+  "clipcut-editor": "✂",
+  "baixou-media": "⬇",
+  "csv-to-json": "⇄",
+  "json-to-csv": "⇄",
+  "excel-to-csv": "⊞",
+  "csv-to-excel": "⊞",
+  "json-formatter": "{ }",
+  "xml-to-json": "⟨⟩",
+  "yaml-to-json": "≡",
+  "sql-formatter": "SQL",
+  "csv-cleaner": "✦",
+  "zip-creator": "🗜",
+  "zip-extractor": "📂",
+  "file-hash": "#",
+  "word-counter": "№",
+  "case-converter": "Aa",
+  "remove-accents": "Ä",
+  "slug-generator": "🔗",
+  "sort-lines": "⇅",
+  "text-diff": "⇄",
+  "find-replace": "⌕",
+  "markdown-html": "M↓",
+  "lorem-ipsum": "¶",
+  "whatsapp-formatter": "💬",
+  "whatsapp-link": "📲",
+  "pomodoro-timer": "⏱",
+  "qr-code-generator": "⊞",
+  "qr-code-studio": "⊞",
+  "qr-scanner": "📷",
+  "barcode-generator": "|||",
+  "password-generator": "🔑",
+  "uuid-generator": "ID",
+  "base64-codec": "64",
+  "url-encoder": "%",
+  "jwt-decoder": "JWT",
+  "regex-tester": ".*",
+  "cron-parser": "⏲",
+  "color-converter": "🎨",
+  "timestamp-converter": "🕒",
+  "html-minifier": "⟨/⟩",
+  "css-minifier": "{ }",
+  "js-minifier": "JS",
+  "ai-summarize": "✦",
+  "ai-rewrite": "✎",
+  "ai-translate": "🌐",
+  "ai-grammar": "✓",
+  "ai-bullets": "•",
+  "ai-titles": "H1",
+  "ai-email": "✉",
+  "ai-social": "📣",
+  "ai-alt-text": "🖼",
+  "ai-upscale": "⤢",
+  transcribe: "🎙",
+  "ai-resume": "📄",
+  "ai-brand": "💡",
+  "ai-policy": "⚖",
+  "ai-video-summary": "▶",
+  "ai-code-explain": "⟨/⟩",
+};
+const toolIcon = (tool) =>
+  specificIcons[tool?.id] || icons[tool?.category] || "✦";
+const newToolIds = new Set([
+  "pdf-to-pptx",
+  "edit-pdf",
+  "grayscale-pdf",
+  "compare-pdf",
+  "epub-pdf",
+  "pro-image-converter",
+  "palette-extractor",
+  "colorize-image",
+  "sticker-maker",
+  "text-to-speech",
+  "add-audio-to-video",
+  "reverse-video",
+  "denoise-audio",
+  "ai-resume",
+  "ai-brand",
+  "ai-policy",
+  "ai-video-summary",
+  "ai-code-explain",
+]);
+const popularToolIds = new Set([
+  "merge-pdf",
+  "compress-pdf",
+  "pdf-to-word",
+  "sign-pdf",
+  "remove-bg",
+  "ai-remove-bg",
+  "qr-code-studio",
+  "burn-subtitles",
+  "transcribe",
+  "compress-image",
+]);
+const featuredToolIds = [
+  "ai-remove-bg",
+  "merge-pdf",
+  "pdf-to-word",
+  "pdf-to-pptx",
+  "pro-image-converter",
+  "qr-code-studio",
+  "burn-subtitles",
+  "transcribe",
+];
+function toolBadge(tool) {
+  if (newToolIds.has(tool.id))
+    return `<span class="card-tag tag-new">${L("NOVO", "NEW")}</span>`;
+  if (popularToolIds.has(tool.id))
+    return `<span class="card-tag tag-hot">${L("Popular", "Popular")}</span>`;
+  if (tool.model)
+    return `<span class="card-tag tag-ai">${L("IA Local", "Local AI")}</span>`;
+  return "";
+}
 const messages = {
   explore: ["EXPLORE O LAB", "EXPLORE THE LAB"],
   artCaption: ["MENOS ETAPAS. MAIS CRIAÇÃO.", "LESS FRICTION. MORE CREATION."],
+  popularLabel: ["Populares:", "Popular:"],
   quickPdf: ["Juntar PDF", "Merge PDF"],
   quickCompress: ["Comprimir imagem", "Compress image"],
+  quickCutout: ["Remover Fundo IA", "AI Cutout"],
+  quickTts: ["Texto → Voz", "Text → Speech"],
+  smartBadge: ["⚡ DETECÇÃO INTELIGENTE", "⚡ SMART DETECTION"],
+  smartDropTitle: [
+    "Arraste qualquer arquivo aqui",
+    "Drop any file here",
+  ],
+  smartDropSub: [
+    "Solte um PDF, foto, PSD/TIFF, vídeo, áudio, planilha ou EPUB (ou pressione Ctrl+V) — sugerimos as ferramentas certas na hora.",
+    "Drop a PDF, photo, PSD/TIFF, video, audio, spreadsheet or EPUB (or press Ctrl+V) — we suggest the right tools instantly.",
+  ],
+  smartDropBtn: [
+    "＋ Escolher arquivo do dispositivo",
+    "＋ Choose file from device",
+  ],
+  featuredEyebrow: ["DESTAQUES DO LABORATÓRIO", "LAB HIGHLIGHTS"],
+  featuredTitle: ["Ferramentas mais usadas", "Most popular tools"],
+  layoutGrouped: ["▤ Por categoria", "▤ By category"],
+  layoutGrid: ["▦ Grade", "▦ Grid"],
+  layoutCompact: ["☰ Compacto", "☰ Compact"],
   terms: ["Termos", "Terms"],
   privacyLink: ["Privacidade", "Privacy"],
   title: ["Seu laboratório.", "Your laboratory."],
@@ -91,8 +316,8 @@ const messages = {
     "PDFs, images, videos, files and text. Useful tools, no ads, processed on your device.",
   ],
   search: [
-    "O que você quer fazer? Ex.: juntar PDF, reduzir foto…",
-    "What would you like to do? E.g. merge PDF, compress photo…",
+    "O que você quer fazer? Ex.: juntar PDF, remover fundo, PSD, PIX…",
+    "What would you like to do? E.g. merge PDF, remove BG, PSD, QR…",
   ],
   all: ["Todas as ferramentas", "All tools"],
   favorites: ["Favoritas", "Favorites"],
@@ -245,10 +470,45 @@ function translate() {
     b.textContent = t(b.dataset.filter);
     b.setAttribute("aria-pressed", String(b.dataset.filter === filter));
   });
+  document.querySelectorAll("[data-layout]").forEach((b) => {
+    b.setAttribute("aria-pressed", String(b.dataset.layout === layout));
+  });
+  renderFeatured();
   renderCatalog();
+  if (heroFiles.length) renderHeroDropMatched();
   updateNetwork();
 }
+function renderFeatured() {
+  const sec = $("#featuredSection");
+  const grid = $("#featuredGrid");
+  if (!sec || !grid) return;
+  const show = category === "all" && filter === "all" && !query.trim();
+  sec.hidden = !show;
+  if (!show) return;
+  const items = featuredToolIds.map((id) => findTool(id)).filter(Boolean);
+  grid.innerHTML = items
+    .map(
+      (tool) =>
+        `<article class="featured-card ${tool.category}"><a class="featured-link" href="${esc(toolHref(tool))}" data-tool="${tool.id}"><span class="tool-icon">${toolIcon(tool)}</span><div class="featured-body"><div class="featured-top"><strong>${esc(tool.title[lang])}</strong>${toolBadge(tool)}</div><p>${esc(tool.description[lang])}</p></div><span class="featured-arrow" aria-hidden="true">↗</span></a></article>`,
+    )
+    .join("");
+}
+function cardHtml(tool) {
+  const catLabel =
+    categories.find((c) => c.id === tool.category)?.label[lang] || "";
+  const isFav = favorites.includes(tool.id);
+  const runBadge = tool.external
+    ? L("App 4u-Labs ↗", "4u-Labs App ↗")
+    : tool.companion
+      ? L("Serviço efêmero", "Ephemeral service")
+      : tool.model
+        ? L("Modelo local", "Local model")
+        : L("No navegador", "In browser");
+  return `<article class="tool-card ${tool.category}"><div class="card-top"><span class="tool-icon">${toolIcon(tool)}</span><div class="card-top-right">${toolBadge(tool)}<button class="favorite ${isFav ? "saved" : ""}" data-favorite="${tool.id}" aria-label="${L("Favoritar", "Favorite")} ${esc(tool.title[lang])}" aria-pressed="${isFav}">${isFav ? "★" : "☆"}</button></div></div><span class="card-category">${esc(catLabel)}</span><h3><a href="${esc(toolHref(tool))}" data-tool="${tool.id}" ${tool.external ? 'target="_blank" rel="noopener noreferrer"' : ""}>${esc(tool.title[lang])}</a></h3><p>${esc(tool.description[lang])}</p><div class="card-bottom"><span class="local-badge">${runBadge}</span><a class="card-open" href="${esc(toolHref(tool))}" data-tool="${tool.id}" ${tool.external ? 'target="_blank" rel="noopener noreferrer"' : ""} aria-label="${t("open")} ${esc(tool.title[lang])}">↗</a></div></article>`;
+}
 function renderCatalog() {
+  if ($("#searchClear")) $("#searchClear").hidden = !query.length;
+  renderFeatured();
   let list = searchTools(query, category, lang);
   if (filter === "favorites")
     list = list.filter((x) => favorites.includes(x.id));
@@ -256,14 +516,140 @@ function renderCatalog() {
     list = recent.map((id) => list.find((t) => t.id === id)).filter(Boolean);
   $("#shownCount").textContent = `${list.length} ${t("countLabel")}`;
   $("#clearRecent").hidden = filter !== "recent" || !recent.length;
-  $("#catalog").innerHTML = list.length
-    ? list
-        .map(
-          (tool) =>
-            `<article class="tool-card ${tool.category}"><div class="card-top"><span class="tool-icon">${icons[tool.category]}</span><button class="favorite ${favorites.includes(tool.id) ? "saved" : ""}" data-favorite="${tool.id}" aria-label="${L("Favoritar", "Favorite")} ${esc(tool.title[lang])}" aria-pressed="${favorites.includes(tool.id)}">${favorites.includes(tool.id) ? "★" : "☆"}</button></div><span class="card-category">${esc(categories.find((c) => c.id === tool.category).label[lang])}</span><h3><a href="${esc(toolHref(tool))}" data-tool="${tool.id}" ${tool.external ? 'target="_blank" rel="noopener noreferrer"' : ""}>${esc(tool.title[lang])}</a></h3><p>${esc(tool.description[lang])}</p><div class="card-bottom"><span class="local-badge">${tool.external ? L("App 4u-Labs ↗", "4u-Labs App ↗") : tool.companion ? L("Serviço efêmero", "Ephemeral service") : tool.model ? L("Modelo local", "Local model") : L("No navegador", "In browser")}</span><a class="card-open" href="${esc(toolHref(tool))}" data-tool="${tool.id}" ${tool.external ? 'target="_blank" rel="noopener noreferrer"' : ""} aria-label="${t("open")} ${esc(tool.title[lang])}">↗</a></div></article>`,
-        )
-        .join("")
-    : `<p class="catalog-empty">${t("empty")}</p>`;
+  const catEl = $("#catalog");
+  const canGroup =
+    layout === "grouped" &&
+    category === "all" &&
+    filter === "all" &&
+    !query.trim();
+  catEl.className = canGroup
+    ? "tools-catalog is-grouped"
+    : `tools-grid ${layout === "compact" ? "is-compact" : ""}`.trim();
+  if (!list.length) {
+    catEl.innerHTML = `<p class="catalog-empty">${t("empty")}</p>`;
+    return;
+  }
+  if (canGroup) {
+    catEl.innerHTML = categories
+      .filter((c) => c.id !== "all")
+      .map((c) => {
+        const catTools = list.filter((t) => t.category === c.id);
+        if (!catTools.length) return "";
+        return `<section class="catalog-section ${c.id}" data-cat-section="${c.id}"><div class="catalog-section-head"><div class="catalog-section-title"><span class="cat-badge ${c.id}">${c.icon}</span><h3>${esc(c.label[lang])}</h3><span class="cat-count">${catTools.length}</span></div><button type="button" class="section-more" data-category="${c.id}">${L(`Filtrar categoria (${catTools.length}) →`, `Filter category (${catTools.length}) →`)}</button></div><div class="tools-grid">${catTools.map(cardHtml).join("")}</div></section>`;
+      })
+      .join("");
+    return;
+  }
+  catEl.innerHTML = list.map(cardHtml).join("");
+}
+function recommendToolsForFiles(incoming) {
+  const first = incoming[0];
+  if (!first) return [];
+  const name = (first.name || "").toLowerCase();
+  const type = (first.type || "").toLowerCase();
+  let ids;
+  if (type === "application/pdf" || name.endsWith(".pdf")) {
+    ids =
+      incoming.length > 1
+        ? [
+            "merge-pdf",
+            "compare-pdf",
+            "compress-pdf",
+            "pdf-to-word",
+            "pdf-to-pptx",
+            "edit-pdf",
+            "sign-pdf",
+            "split-pdf",
+          ]
+        : [
+            "compress-pdf",
+            "pdf-to-word",
+            "pdf-to-pptx",
+            "edit-pdf",
+            "sign-pdf",
+            "merge-pdf",
+            "split-pdf",
+            "grayscale-pdf",
+          ];
+  } else if (name.endsWith(".epub") || type.includes("epub")) {
+    ids = ["epub-pdf", "file-hash", "zip-creator"];
+  } else if (/\.(psd|tiff?|bmp|ico)$/i.test(name)) {
+    ids = [
+      "pro-image-converter",
+      "palette-extractor",
+      "compress-image",
+      "resize-image",
+      "watermark-image",
+    ];
+  } else if (/\.(heic|heif)$/i.test(name)) {
+    ids = ["heic-converter", "compress-image", "resize-image"];
+  } else if (name.endsWith(".svg") || type === "image/svg+xml") {
+    ids = ["svg-to-png", "favicon-generator", "compress-image"];
+  } else if (type.startsWith("image/") || /\.(png|jpe?g|webp|gif|avif)$/i.test(name)) {
+    ids = [
+      "ai-remove-bg",
+      "remove-bg",
+      "compress-image",
+      "resize-image",
+      "palette-extractor",
+      "sticker-maker",
+      "colorize-image",
+      "ocr-image",
+    ];
+  } else if (type.startsWith("video/") || /\.(mp4|mov|webm|mkv|avi)$/i.test(name)) {
+    ids = [
+      "trim-video",
+      "compress-video",
+      "burn-subtitles",
+      "add-audio-to-video",
+      "video-to-gif",
+      "extract-audio",
+      "reverse-video",
+      "transcribe",
+    ];
+  } else if (type.startsWith("audio/") || /\.(mp3|wav|m4a|ogg|flac|aac)$/i.test(name)) {
+    ids = [
+      "trim-audio",
+      "denoise-audio",
+      "transcribe",
+      "convert-audio",
+      "normalize-audio",
+      "merge-audio",
+    ];
+  } else if (/\.(docx?|odt|rtf)$/i.test(name)) {
+    ids = ["word-to-pdf", "file-hash", "zip-creator"];
+  } else if (/\.(xlsx?|ods)$/i.test(name)) {
+    ids = ["excel-to-pdf", "excel-to-csv", "file-hash"];
+  } else if (/\.(pptx?|odp)$/i.test(name)) {
+    ids = ["pptx-to-pdf", "file-hash"];
+  } else if (name.endsWith(".csv") || type === "text/csv") {
+    ids = ["csv-to-excel", "csv-to-json", "csv-cleaner"];
+  } else if (name.endsWith(".json") || type.includes("json")) {
+    ids = ["json-formatter", "json-to-csv", "file-hash"];
+  } else if (name.endsWith(".zip") || type.includes("zip")) {
+    ids = ["zip-extractor", "file-hash"];
+  } else {
+    ids = ["file-hash", "zip-creator", "base64-codec"];
+  }
+  return ids.map((id) => findTool(id)).filter(Boolean);
+}
+function renderHeroDropMatched() {
+  const box = $("#heroDropMatched");
+  if (!box) return;
+  if (!heroFiles.length) {
+    box.hidden = true;
+    box.innerHTML = "";
+    return;
+  }
+  const recs = recommendToolsForFiles(heroFiles);
+  const totalBytes = heroFiles.reduce((s, f) => s + (f.size || 0), 0);
+  const first = heroFiles[0];
+  const label =
+    heroFiles.length > 1
+      ? `${first.name} +${heroFiles.length - 1}`
+      : first.name;
+  box.hidden = false;
+  box.innerHTML = `<div class="matched-head"><div class="matched-file"><span>📄</span><strong>${esc(label)}</strong><small>${humanBytes(totalBytes)}</small></div><button type="button" class="matched-close" id="heroDropClear" aria-label="${t("close")}">×</button></div><p class="matched-sub">${L("Ferramentas compatíveis com seu arquivo — clique para abrir já carregado:", "Compatible tools for your file — click to open preloaded:")}</p><div class="matched-grid">${recs.map((tool) => `<button type="button" class="matched-tool ${tool.category}" data-hero-open="${tool.id}"><span class="tool-icon">${toolIcon(tool)}</span><span>${esc(tool.title[lang])}</span></button>`).join("")}</div>`;
 }
 function field(o) {
   const id = "option-" + o.key,
@@ -443,7 +829,7 @@ function openTool(id, { chainFiles = [], content = "", fromPaste = false } = {})
   if (location.pathname !== targetPath || location.hash)
     history.replaceState(null, "", targetPath + location.search);
   updateDocTitle();
-  $("#workspaceIcon").textContent = icons[tool.category];
+  $("#workspaceIcon").textContent = toolIcon(tool);
   $("#workspaceCategory").textContent = categories.find(
     (c) => c.id === tool.category,
   ).label[lang];
@@ -2628,17 +3014,84 @@ document.addEventListener("click", (e) => {
   if (cat) {
     category = cat.dataset.category;
     translate();
+    if (cat.classList.contains("section-more")) {
+      $("#commandBar")?.scrollIntoView({
+        behavior: matchMedia("(prefers-reduced-motion: reduce)").matches
+          ? "auto"
+          : "smooth",
+        block: "start",
+      });
+    }
   }
   const filt = e.target.closest("[data-filter]");
   if (filt) {
     filter = filt.dataset.filter;
     translate();
   }
+  const lay = e.target.closest("[data-layout]");
+  if (lay) {
+    layout = lay.dataset.layout;
+    save("layout", layout);
+    translate();
+  }
+  const heroOpen = e.target.closest("[data-hero-open]");
+  if (heroOpen && heroFiles.length) {
+    openTool(heroOpen.dataset.heroOpen, {
+      chainFiles: [...heroFiles],
+      fromPaste: true,
+    });
+  }
+  if (e.target.closest("#heroDropClear")) {
+    heroFiles = [];
+    if ($("#heroFileInput")) $("#heroFileInput").value = "";
+    renderHeroDropMatched();
+  }
 });
 $("#search").oninput = (e) => {
   query = e.target.value;
   renderCatalog();
 };
+if ($("#searchClear")) {
+  $("#searchClear").onclick = () => {
+    query = "";
+    $("#search").value = "";
+    renderCatalog();
+    $("#search").focus();
+  };
+}
+if ($("#heroDropzone") && $("#heroFileInput")) {
+  const hDrop = $("#heroDropzone"),
+    hInput = $("#heroFileInput");
+  hDrop.addEventListener("click", (e) => {
+    if (e.target.closest("input")) return;
+    hInput.click();
+  });
+  hDrop.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      hInput.click();
+    }
+  });
+  hInput.onchange = () => {
+    const incoming = [...(hInput.files || [])];
+    if (!incoming.length) return;
+    heroFiles = incoming;
+    renderHeroDropMatched();
+  };
+  hDrop.ondragover = (e) => {
+    e.preventDefault();
+    hDrop.classList.add("dragover");
+  };
+  hDrop.ondragleave = () => hDrop.classList.remove("dragover");
+  hDrop.ondrop = (e) => {
+    e.preventDefault();
+    hDrop.classList.remove("dragover");
+    const incoming = [...(e.dataTransfer?.files || [])];
+    if (!incoming.length) return;
+    heroFiles = incoming;
+    renderHeroDropMatched();
+  };
+}
 $("#langPt").onclick = () => {
   lang = "pt";
   save("lang", lang);

@@ -132,16 +132,59 @@
             PDFs, imagens, vídeos, arquivos e texto. Ferramentas úteis, sem
             anúncios e com processamento no seu dispositivo.
           </p>
+          <div class="search-shell hero-search">
+            <span class="search-icon" aria-hidden="true">⌕</span>
+            <input
+              id="search"
+              type="search"
+              placeholder="O que você quer fazer? Ex.: juntar PDF, remover fundo, PSD, PIX…"
+              autocomplete="off"
+            />
+            <button
+              type="button"
+              id="searchClear"
+              class="search-clear"
+              aria-label="Limpar busca / Clear search"
+              hidden
+            >
+              ×
+            </button>
+            <kbd title="Atalho / Shortcut">/</kbd>
+          </div>
+          <div class="quick-tools">
+            <span class="quick-label" data-t="popularLabel">Populares:</span>
+            <button type="button" data-tool="merge-pdf">
+              ▤ <span data-t="quickPdf">Juntar PDF</span>
+            </button>
+            <button type="button" data-tool="pdf-to-word">
+              ▤ <span>PDF → Word</span>
+            </button>
+            <button type="button" data-tool="pdf-to-pptx">
+              ▤ <span>PDF → PPTX</span>
+            </button>
+            <button type="button" data-tool="ai-remove-bg">
+              ✧ <span data-t="quickCutout">Remover Fundo IA</span>
+            </button>
+            <button type="button" data-tool="pro-image-converter">
+              ◈ <span>PSD / TIFF → PNG</span>
+            </button>
+            <button type="button" data-tool="qr-code-studio">
+              ⌘ <span>QR Code &amp; PIX</span>
+            </button>
+            <button type="button" data-tool="text-to-speech">
+              ▷ <span data-t="quickTts">Texto → Voz</span>
+            </button>
+          </div>
           <div class="hero-stats">
-            <div>
+            <div class="stat-card">
               <strong id="toolCount">150</strong
               ><span data-t="countLabel">ferramentas</span>
             </div>
-            <div>
+            <div class="stat-card">
               <strong id="categoryCount">7</strong
               ><span data-t="categoriesLabel">categorias</span>
             </div>
-            <div class="privacy-stat">
+            <div class="stat-card privacy-stat">
               <strong>100%</strong
               ><span data-t="localLabel"
                 >sem upload nas operações do navegador</span
@@ -149,64 +192,113 @@
             </div>
           </div>
         </div>
-        <div class="hero-art" aria-hidden="true">
-          <div class="orb orb-one"></div>
-          <div class="orb orb-two"></div>
-          <div class="orbit"></div>
-          <div class="hero-logo">
-            <img src="icon-192.png" alt="" width="116" height="116" />
+        <div class="hero-smart-wrap">
+          <div
+            class="hero-drop-card"
+            id="heroDropzone"
+            tabindex="0"
+            role="button"
+            aria-label="Soltar ou escolher arquivo para recomendação automática de ferramenta"
+          >
+            <input id="heroFileInput" type="file" multiple hidden />
+            <div class="orb orb-one" aria-hidden="true"></div>
+            <div class="orb orb-two" aria-hidden="true"></div>
+            <div class="hero-drop-head">
+              <div class="hero-logo">
+                <img src="icon-192.png" alt="" width="68" height="68" />
+              </div>
+              <span class="smart-badge" data-t="smartBadge"
+                >⚡ DETECÇÃO INTELIGENTE</span
+              >
+            </div>
+            <h2 class="hero-drop-title" data-t="smartDropTitle">
+              Arraste qualquer arquivo aqui
+            </h2>
+            <p class="hero-drop-sub" data-t="smartDropSub">
+              Solte um PDF, foto, PSD/TIFF, vídeo, áudio, planilha ou EPUB (ou
+              pressione Ctrl+V) — sugerimos as ferramentas certas na hora.
+            </p>
+            <div class="hero-format-pills" aria-hidden="true">
+              <span>PDF · EPUB</span>
+              <span>PNG · JPG · WebP · PSD · TIFF</span>
+              <span>MP4 · MP3 · WAV</span>
+              <span>XLSX · CSV · JSON</span>
+            </div>
+            <div class="hero-drop-cta">
+              <span class="hero-drop-btn" data-t="smartDropBtn"
+                >＋ Escolher arquivo do dispositivo</span
+              >
+            </div>
           </div>
-          <div class="floating-token token-pdf">▤ <span>PDF</span></div>
-          <div class="floating-token token-image">◈ <span>IMAGE</span></div>
-          <div class="floating-token token-code">⌘ <span>CODE</span></div>
-          <div class="floating-token token-ai">✧ <span>LOCAL AI</span></div>
-          <div class="art-caption" data-t="artCaption">
-            MENOS ETAPAS. MAIS CRIAÇÃO.
-          </div>
+          <div id="heroDropMatched" class="hero-drop-matched" hidden></div>
         </div>
       </section>
       <section class="discovery" aria-label="Ferramentas / Tools">
-        <div class="search-shell">
-          <span aria-hidden="true">⌕</span
-          ><input
-            id="search"
-            type="search"
-            placeholder="O que você quer fazer?"
-            autocomplete="off"
-          /><kbd>/</kbd>
-        </div>
-        <div class="quick-tools">
-          <button data-tool="merge-pdf">
-            ▤ <span data-t="quickPdf">Juntar PDF</span> ↗</button
-          ><button data-tool="compress-image">
-            ◈ <span data-t="quickCompress">Comprimir imagem</span> ↗</button
-          ><button data-tool="qr-code-studio">⌘ <span>QR Code</span> ↗</button
-          ><button data-tool="ocr-image">✧ <span>OCR</span> ↗</button>
-        </div>
-        <div class="catalog-heading">
-          <div>
-            <span class="eyebrow" data-t="explore">EXPLORE O LAB</span>
-            <h2 data-t="all">Todas as ferramentas</h2>
+        <div id="featuredSection" class="featured-section">
+          <div class="section-head">
+            <div>
+              <span class="eyebrow" data-t="featuredEyebrow"
+                >DESTAQUES DO LABORATÓRIO</span
+              >
+              <h2 data-t="featuredTitle">Ferramentas mais usadas</h2>
+            </div>
           </div>
-          <span id="shownCount"></span>
+          <div id="featuredGrid" class="featured-grid"></div>
         </div>
-        <div class="category-nav" id="categoryNav"></div>
-        <div class="filter-bar">
-          <div class="view-filters">
-            <button data-filter="all" aria-pressed="true">
-              Todas as ferramentas</button
-            ><button data-filter="favorites" aria-pressed="false">
-              Favoritas</button
-            ><button data-filter="recent" aria-pressed="false">Recentes</button>
+        <div class="command-bar" id="commandBar">
+          <div class="category-nav" id="categoryNav"></div>
+          <div class="filter-bar">
+            <div class="view-filters">
+              <button data-filter="all" aria-pressed="true">
+                Todas as ferramentas</button
+              ><button data-filter="favorites" aria-pressed="false">
+                Favoritas</button
+              ><button data-filter="recent" aria-pressed="false">
+                Recentes
+              </button>
+              <button
+                class="text-button"
+                id="clearRecent"
+                data-t="clearRecent"
+                hidden
+              >
+                Limpar recentes
+              </button>
+            </div>
+            <div class="catalog-meta">
+              <span id="shownCount"></span>
+              <div
+                class="layout-switch"
+                role="group"
+                aria-label="Modo de visualização / View mode"
+              >
+                <button
+                  type="button"
+                  data-layout="grouped"
+                  aria-pressed="true"
+                  data-t="layoutGrouped"
+                >
+                  ▤ Por categoria
+                </button>
+                <button
+                  type="button"
+                  data-layout="grid"
+                  aria-pressed="false"
+                  data-t="layoutGrid"
+                >
+                  ▦ Grade
+                </button>
+                <button
+                  type="button"
+                  data-layout="compact"
+                  aria-pressed="false"
+                  data-t="layoutCompact"
+                >
+                  ☰ Compacto
+                </button>
+              </div>
+            </div>
           </div>
-          <button
-            class="text-button"
-            id="clearRecent"
-            data-t="clearRecent"
-            hidden
-          >
-            Limpar recentes
-          </button>
         </div>
         <div class="tools-grid" id="catalog" aria-live="polite"></div>
       </section>
