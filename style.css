@@ -2088,7 +2088,54 @@ fieldset {
     font-size: 11px;
   }
   .hero-drop-card {
-    padding: 20px 16px;
+    padding: 16px 14px;
+    border-radius: 18px;
+  }
+  .hero-logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+  }
+  .hero-logo img {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+  }
+  .smart-badge {
+    font-size: 9.5px;
+    padding: 4px 9px;
+  }
+  .smart-shortcut {
+    display: none;
+  }
+  .hero-drop-title {
+    font-size: 18px;
+  }
+  .hero-drop-sub {
+    font-size: 12.5px;
+  }
+  .smart-steps {
+    font-size: 10.5px;
+    padding: 7px 8px;
+    gap: 4px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .smart-demo {
+    padding: 10px;
+  }
+  .demo-file-row {
+    flex-wrap: wrap;
+    font-size: 11px;
+    padding: 5px 8px;
+  }
+  .demo-chip {
+    font-size: 11px;
+    padding: 5px 7px;
+  }
+  .hero-drop-btn {
+    font-size: 13px;
+    padding: 12px 14px;
   }
   .matched-grid,
   .featured-grid {
@@ -2131,15 +2178,25 @@ fieldset {
     font-size: 12px;
     padding: 8px 11px;
   }
+  .filter-bar {
+    gap: 8px;
+    padding-bottom: 6px;
+  }
   .view-filters {
-    gap: 16px;
+    gap: 14px;
+    width: 100%;
   }
   .view-filters button {
     font-size: 12px;
+    padding: 6px 0;
+  }
+  .catalog-meta {
+    width: 100%;
+    justify-content: space-between;
   }
   .layout-switch button {
     font-size: 11px;
-    padding: 5px 8px;
+    padding: 4px 7px;
   }
   .catalog-section-head {
     flex-wrap: wrap;
@@ -2269,12 +2326,6 @@ fieldset {
   .close-button {
     width: 40px;
     height: 40px;
-  }
-  .quick-tools button:nth-child(2) span {
-    max-width: 80px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 }
 @media (prefers-reduced-motion: reduce) {

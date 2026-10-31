@@ -207,16 +207,16 @@ const assets = [
   ...(await walk("vendor")).map((p) => "./" + p),
   "./THIRD_PARTY_NOTICES.md",
 ];
+const cleanIndexHtml = (await readFile("index.html", "utf8")).replace(
+  /\?v=[a-f0-9]+/g,
+  "",
+);
 const hash = createHash("sha256");
-for (const p of [
-  ...(await walk("src")),
-  "style.css",
-  "index.html",
-  "icon-192.png",
-  "og-banner.jpg",
-])
+for (const p of [...(await walk("src")), "style.css", "icon-192.png", "og-banner.jpg"])
   hash.update(await readFile(p));
-const cache = "tinylab-v2-" + hash.digest("hex").slice(0, 12);
+hash.update(cleanIndexHtml);
+const ver = hash.digest("hex").slice(0, 12);
+const cache = "tinylab-v2-" + ver;
 const core = [
   "./",
   "./index.html",
@@ -235,7 +235,7 @@ await writeFile(
 );
 await writeFile(
   "sw.js",
-  `const CACHE=${JSON.stringify(cache)};\nconst CORE=${JSON.stringify(core)};\nself.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(CORE)));self.skipWaiting();});\nself.addEventListener('activate',e=>{e.waitUntil((async()=>{for(const key of await caches.keys())if((key.startsWith('tinylab-v2-')||key==='tinylab-cache-v1')&&key!==CACHE)await caches.delete(key);await self.clients.claim();})());});\nself.addEventListener('fetch',e=>{const u=new URL(e.request.url),base=new URL('./',self.location.href);if(e.request.method==='POST'&&u.origin===base.origin&&u.pathname.startsWith(base.pathname)&&u.searchParams.get('share-target')==='1'){e.respondWith((async()=>{const form=await e.request.formData();const sharedFiles=form.getAll('files').filter(f=>f&&typeof f.arrayBuffer==='function'&&f.size>0);const sharedText=[form.get('title'),form.get('text'),form.get('url')].filter(Boolean).join('\\n').trim();const cache=await caches.open(CACHE);const meta=[];for(let i=0;i<sharedFiles.length;i++){const f=sharedFiles[i],itemUrl=new URL('__shared_file_'+i+'__',base).href;await cache.put(itemUrl,new Response(f,{headers:{'Content-Type':f.type||'application/octet-stream'}}));meta.push({url:itemUrl,name:f.name||'shared-'+(i+1),type:f.type||'application/octet-stream',lastModified:f.lastModified||Date.now()});}await cache.put(new URL('__shared_meta__',base).href,new Response(JSON.stringify({files:meta,text:sharedText}),{headers:{'Content-Type':'application/json'}}));return Response.redirect(new URL('./?shared=1',base).href,303);})());return;}if(e.request.method!=='GET'||u.origin!==base.origin||!u.pathname.startsWith(base.pathname)||u.pathname.includes('/api/')||u.pathname.endsWith('.php')||e.request.headers.has('range'))return;e.respondWith((async()=>{const cache=await caches.open(CACHE);try{const response=await fetch(e.request);if(response.ok&&response.type!=='opaque'&&!response.headers.get('cache-control')?.includes('no-store'))await cache.put(e.request,response.clone());return response;}catch(err){const cached=await cache.match(e.request);if(cached)return cached;if(e.request.mode==='navigate')return cache.match(new URL('index.html',base));throw err;}})());});\n`,
+  `const CACHE=${JSON.stringify(cache)};\nconst CORE=${JSON.stringify(core)};\nself.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>Promise.all(CORE.map(u=>fetch(u,{cache:'reload'}).then(r=>r.ok?c.put(u,r):null)))));self.skipWaiting();});\nself.addEventListener('activate',e=>{e.waitUntil((async()=>{for(const key of await caches.keys())if((key.startsWith('tinylab-v2-')||key==='tinylab-cache-v1')&&key!==CACHE)await caches.delete(key);await self.clients.claim();})());});\nself.addEventListener('fetch',e=>{const u=new URL(e.request.url),base=new URL('./',self.location.href);if(e.request.method==='POST'&&u.origin===base.origin&&u.pathname.startsWith(base.pathname)&&u.searchParams.get('share-target')==='1'){e.respondWith((async()=>{const form=await e.request.formData();const sharedFiles=form.getAll('files').filter(f=>f&&typeof f.arrayBuffer==='function'&&f.size>0);const sharedText=[form.get('title'),form.get('text'),form.get('url')].filter(Boolean).join('\\n').trim();const cache=await caches.open(CACHE);const meta=[];for(let i=0;i<sharedFiles.length;i++){const f=sharedFiles[i],itemUrl=new URL('__shared_file_'+i+'__',base).href;await cache.put(itemUrl,new Response(f,{headers:{'Content-Type':f.type||'application/octet-stream'}}));meta.push({url:itemUrl,name:f.name||'shared-'+(i+1),type:f.type||'application/octet-stream',lastModified:f.lastModified||Date.now()});}await cache.put(new URL('__shared_meta__',base).href,new Response(JSON.stringify({files:meta,text:sharedText}),{headers:{'Content-Type':'application/json'}}));return Response.redirect(new URL('./?shared=1',base).href,303);})());return;}if(e.request.method!=='GET'||u.origin!==base.origin||!u.pathname.startsWith(base.pathname)||u.pathname.includes('/api/')||u.pathname.endsWith('.php')||e.request.headers.has('range'))return;e.respondWith((async()=>{const cache=await caches.open(CACHE);try{const response=await fetch(e.request,{cache:'no-cache'});if(response.ok&&response.type!=='opaque'&&!response.headers.get('cache-control')?.includes('no-store'))await cache.put(e.request,response.clone());return response;}catch(err){const cached=(await cache.match(e.request))||(await cache.match(e.request,{ignoreSearch:true}));if(cached)return cached;if(e.request.mode==='navigate')return cache.match(new URL('index.html',base));throw err;}})());});\n`,
 );
 
 // Generate static SEO landing pages per internal tool + sitemap.xml
@@ -248,7 +248,17 @@ const escHtml = (s) =>
         c
       ],
   );
-const rootHtml = await readFile("index.html", "utf8");
+const rootHtml = cleanIndexHtml
+  .replaceAll('href="favicon-32x32.png"', `href="favicon-32x32.png?v=${ver}"`)
+  .replaceAll('href="icon-96.png"', `href="icon-96.png?v=${ver}"`)
+  .replaceAll('href="favicon.ico"', `href="favicon.ico?v=${ver}"`)
+  .replaceAll('href="icon-192.png"', `href="icon-192.png?v=${ver}"`)
+  .replaceAll('href="manifest.json"', `href="manifest.json?v=${ver}"`)
+  .replaceAll('href="style.css"', `href="style.css?v=${ver}"`)
+  .replaceAll('src="assets/main.js"', `src="assets/main.js?v=${ver}"`)
+  .replaceAll('src="icon-96.png"', `src="icon-96.png?v=${ver}"`)
+  .replaceAll('src="icon-192.png"', `src="icon-192.png?v=${ver}"`);
+await writeFile("index.html", rootHtml);
 const internalTools = tools.filter((t) => !t.external);
 for (const tool of internalTools) {
   const catObj = categories.find((c) => c.id === tool.category);
@@ -374,16 +384,16 @@ for (const tool of internalTools) {
       /<script type="application\/ld\+json" id="schemaJson">[\s\S]*?<\/script>/,
       `<script type="application/ld+json" id="schemaJson">${JSON.stringify(jsonLd).replaceAll("</", "<\\/")}</script>`,
     )
-    .replaceAll('href="favicon-32x32.png"', 'href="../favicon-32x32.png"')
-    .replaceAll('href="icon-96.png"', 'href="../icon-96.png"')
-    .replaceAll('href="favicon.ico"', 'href="../favicon.ico"')
-    .replaceAll('href="icon-192.png"', 'href="../icon-192.png"')
-    .replaceAll('href="manifest.json"', 'href="../manifest.json"')
-    .replaceAll('href="style.css"', 'href="../style.css"')
-    .replaceAll('src="assets/main.js"', 'src="../assets/main.js"')
+    .replaceAll('href="favicon-32x32.png', 'href="../favicon-32x32.png')
+    .replaceAll('href="icon-96.png', 'href="../icon-96.png')
+    .replaceAll('href="favicon.ico', 'href="../favicon.ico')
+    .replaceAll('href="icon-192.png', 'href="../icon-192.png')
+    .replaceAll('href="manifest.json', 'href="../manifest.json')
+    .replaceAll('href="style.css', 'href="../style.css')
+    .replaceAll('src="assets/main.js', 'src="../assets/main.js')
     .replaceAll('href="./"', 'href="../"')
-    .replaceAll('src="icon-96.png"', 'src="../icon-96.png"')
-    .replaceAll('src="icon-192.png"', 'src="../icon-192.png"')
+    .replaceAll('src="icon-96.png', 'src="../icon-96.png')
+    .replaceAll('src="icon-192.png', 'src="../icon-192.png')
     .replace(
       '      <section class="privacy-note">',
       `${seoSheet}      <section class="privacy-note">`,

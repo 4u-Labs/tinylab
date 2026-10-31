@@ -3376,11 +3376,21 @@ $("#accountButton").onclick = async () => {
     toast(e.message);
   }
 };
-if ("serviceWorker" in navigator)
+if ("serviceWorker" in navigator) {
+  const hadController = Boolean(navigator.serviceWorker.controller);
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (hadController && !refreshing) {
+      refreshing = true;
+      location.reload();
+    }
+  });
   navigator.serviceWorker
     .register(new URL("../sw.js", import.meta.url), {
       scope: APP_ROOT.pathname,
+      updateViaCache: "none",
     })
+    .then((reg) => reg.update().catch(() => {}))
     .catch(() =>
       toast(
         L(
@@ -3389,6 +3399,7 @@ if ("serviceWorker" in navigator)
         ),
       ),
     );
+}
 translate();
 function detectUrlTool() {
   const hashTool = location.hash.slice(1);

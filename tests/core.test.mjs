@@ -718,7 +718,8 @@ test("Etapa 4 SEO static tool pages, sitemap.xml, Open Graph banner and PWA shar
         `<link rel="canonical" href="https://4u.ia.br/app/tinylab/${tid}/" />`,
       ),
     );
-    assert.ok(html.includes('src="../assets/main.js"'));
+    assert.match(html, /src="\.\.\/assets\/main\.js\?v=[a-f0-9]{12}"/);
+    assert.match(html, /href="\.\.\/style\.css\?v=[a-f0-9]{12}"/);
     assert.ok(html.includes('id="seoToolSheet"'));
     const ldMatch = html.match(
       /<script type="application\/ld\+json" id="schemaJson">([\s\S]*?)<\/script>/,
