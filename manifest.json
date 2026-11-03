@@ -1,7 +1,7 @@
 {
   "name": "TinyLab — Suíte de Ferramentas Web Livres & Privadas",
   "short_name": "TinyLab",
-  "description": "132 ferramentas locais para PDF, imagens, vídeo, áudio, arquivos, texto e IA. Suporte PT/EN e offline.",
+  "description": "159 ferramentas locais para PDF, imagens, vídeo, áudio, YouTube, arquivos, texto e IA. Suporte PT/EN e offline.",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0e0d14",
@@ -38,7 +38,7 @@
       "sizes": "1024x576",
       "type": "image/jpeg",
       "form_factor": "wide",
-      "label": "TinyLab — 132 ferramentas locais e privadas"
+      "label": "TinyLab — 159 ferramentas locais e privadas"
     }
   ],
   "share_target": {

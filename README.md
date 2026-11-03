@@ -1,4 +1,4 @@
-# 🧪 TinyLab v2.1 — Suíte com 150 Ferramentas Web Livres, Rápidas & Privadas
+# 🧪 TinyLab v2.1 — Suíte com 159 Ferramentas Web Livres, Rápidas & Privadas
 
 <p align="center">
   <img src="og-banner.jpg" alt="TinyLab — Pequenas ferramentas, grandes soluções" width="840" />
@@ -13,11 +13,11 @@
 
 ---
 
-**TinyLab** é o laboratório de utilitários digitais tudo-em-um da **[4u-Labs](https://4u.ia.br/)**, projetado como alternativa moderna, aberta, rápida e **privada por padrão** a suítes cheias de anúncios, filas artificiais e limites diários. Reúne **150 ferramentas em 7 categorias**, bilíngue (**PT-BR / EN**), instalável como **PWA** com **Share Target** e **modo offline**.
+**TinyLab** é o laboratório de utilitários digitais tudo-em-um da **[4u-Labs](https://4u.ia.br/)**, projetado como alternativa moderna, aberta, rápida e **privada por padrão** a suítes cheias de anúncios, filas artificiais e limites diários. Reúne **159 ferramentas em 7 categorias**, bilíngue (**PT-BR / EN**), instalável como **PWA** com **Share Target** e **modo offline**.
 
 ## ✨ Destaques da Versão 2.1
 
-- **150 Ferramentas em 7 Categorias:** PDF & E-books (35), Imagens & Formatos Pro (31), Vídeo & Áudio (26), Dados & Planilhas (15), Texto (8), Dev & QR/Barras (15) e IA Local (20).
+- **159 Ferramentas em 7 Categorias:** PDF & E-books (35), Imagens & Formatos Pro (31), Vídeo, Áudio & YouTube (35), Dados & Planilhas (15), Texto (8), Dev & QR/Barras (15) e IA Local (20).
 - **Privacidade Local-First:** Operações no navegador rodam via **WebAssembly**, **WebGPU**, **Canvas** e **Web Workers** diretamente na memória do seu dispositivo — sem enviar seus arquivos para nuvens de terceiros.
 - **Colar Global (`Ctrl+V`) & Web Share Target:** Cole capturas de tela, fotos ou PDFs em qualquer lugar da página (ou compartilhe direto da galeria do celular para o PWA instalado) com barra rápida para alternar entre ferramentas em 1 clique.
 - **Encadeamento Inteligente:** Envie o arquivo gerado diretamente para a próxima ferramenta (*ex.: Remover Fundo → Comprimir Imagem*, *OCR PDF → Assinar PDF*) sem precisar baixar e reenviar.
@@ -66,12 +66,12 @@ npm run dev
 
 ## 🌍 English
 
-**TinyLab v2.1** is an ad-free, local-first web utility suite by **[4u-Labs](https://4u.ia.br/)** featuring **150 tools across 7 categories** (PDF & E-books, Image & Pro Formats, Video & Audio, Data & Spreadsheets, Text, Dev/QR/Barcodes, and Local AI), full **PT-BR / EN** internationalization, **PWA Web Share Target**, global clipboard paste (`Ctrl+V`), 1-click tool chaining, and offline support.
+**TinyLab v2.1** is an ad-free, local-first web utility suite by **[4u-Labs](https://4u.ia.br/)** featuring **159 tools across 7 categories** (PDF & E-books, Image & Pro Formats, Video, Audio & YouTube, Data & Spreadsheets, Text, Dev/QR/Barcodes, and Local AI), full **PT-BR / EN** internationalization, **PWA Web Share Target**, global clipboard paste (`Ctrl+V`), 1-click tool chaining, and offline support.
 
 ### Key Highlights
 - **35 PDF & E-book Tools:** Merge, Split, Smart Compress (recompresses embedded images while keeping vector text), Searchable PDF OCR, PDF ↔ Word/Excel/PowerPoint (`.pptx`), **EPUB ↔ PDF**, **Edit PDF Text**, **Grayscale PDF**, **Compare 2 PDFs**, Multi-page Vector Sign & Annotate, Permanent Redaction, Flatten, N-up imposition, Markdown → PDF, Metadata editor/wiper, and AES-256 encryption.
 - **31 Image Tools:** Background removal (Color flood-fill + local `ORMBG`/`MODNet` AI + interactive Erase/Restore brush), Portrait Bokeh Blur, Object/Watermark Inpainting, **PSD / TIFF / BMP / ICO Converter**, **Color Palette Extractor & Pixel Picker**, **Colorize B&W Photo**, **512×512 WebP Sticker Pack Maker**, Color PNG/JPG → SVG Vectorizer, Instagram Carousel Splitter, PFPMaker, macOS Screenshot Mockup & Meme Generator, and AVIF/WebP/PNG/JPG/HEIC conversion.
-- **26 Video & Audio Tools:** Dual-handle visual trim timeline, Hardcoded `.srt` subtitle burner, **Text-to-Speech (TTS → WAV)**, **Add Audio/Music to Video**, **Reverse Video**, **Audio Denoise & Voice Enhancer**, Video Concat, 9:16 Vertical Reels/Shorts formatter, 0.5×–3× Speed control, Screen & Live Waveform Voice Recorders, plus direct integration with **ClipCut** and **BAIXOU!!**.
+- **35 Video, Audio & YouTube Tools:** Dual-handle visual trim timeline, Hardcoded `.srt` subtitle burner, **YouTube Creator Suite (Thumbnails, Tags, Description, Shorts Script, Embed Generator, Earnings Calc)**, **Text-to-Speech (TTS → WAV)**, **Add Audio/Music to Video**, **Reverse Video**, **Audio Denoise & Voice Enhancer**, Video Concat, 9:16 Vertical Reels/Shorts formatter, 0.5×–3× Speed control, Screen & Live Waveform Voice Recorders, plus direct integration with **ClipCut** and **BAIXOU!!**.
 - **Data, Text, Dev & Local AI (58 Tools):** CSV ↔ Excel ↔ JSON ↔ XML ↔ YAML, ZIP archiver, Side-by-side Diff Viewer, **QR Code Studio** (`PNG` + `SVG` + Center Logo, PIX, Wi-Fi, vCard), Live Camera QR/Barcode Scanner, `EAN-13`/`Code 128` SVG Generator, JWT Decoder (HMAC verification), Live Regex Tester, Whisper transcription, Swin2SR 2× upscaling, and 10 local `Qwen2.5` AI Write tools with automatic WebGPU acceleration.
 
 ### Build & Test
